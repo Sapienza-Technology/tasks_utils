@@ -24,8 +24,8 @@ def callback(data,pubR,pubL,rate):
     
 
 def main():
-    pubR = rospy.Publisher('/destro', Float32, queue_size=10)
-    pubL = rospy.Publisher('/sinistro', Float32, queue_size=10)
+    pubR = rospy.Publisher('/destra', Float32, queue_size=10)
+    pubL = rospy.Publisher('/sinistra', Float32, queue_size=10)
     rospy.init_node('firmware_teensy', anonymous=True)
     rate = rospy.Rate(10) # 10hz
 
