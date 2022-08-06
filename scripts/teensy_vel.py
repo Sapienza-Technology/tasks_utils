@@ -8,6 +8,8 @@ R=0.08
 L=0.515
 enc_res=356.3
 
+
+MAX_V=7.0
 def callback(data,pubR,pubL,rate):
     #print("received data: ", data)
     linear=data.linear.x
@@ -16,7 +18,7 @@ def callback(data,pubR,pubL,rate):
     V_l=linear-angular*L/2
     W_r=V_r/R
     W_l=V_l/R
-    print("V_r: ", W_r, "V_l: ", W_l)
+    print(f"Received velocity - l:{linear} a:{angular}\n Publishing velocity to firmware - right: {W_V_r} left: {W_l}")
     #publish
     pubR.publish(W_r)
     pubL.publish(W_l)
@@ -24,10 +26,10 @@ def callback(data,pubR,pubL,rate):
     
 
 def main():
-    pubR = rospy.Publisher('/destro', Float32, queue_size=10)
-    pubL = rospy.Publisher('/sinistro', Float32, queue_size=10)
+    pubR = rospy.Publisher('/destra', Float32, queue_size=10)
+    pubL = rospy.Publisher('/sinistra', Float32, queue_size=10)
     rospy.init_node('firmware_teensy', anonymous=True)
-    rate = rospy.Rate(10) # 10hz
+    rate = rospy.Rate(100)
 
     #subscriber pass data using lambda function
     rospy.Subscriber("/cmd_vel", Twist, lambda x: callback(x,pubR,pubL,rate))
