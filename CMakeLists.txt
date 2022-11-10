@@ -163,6 +163,7 @@ include_directories(
  catkin_install_python(PROGRAMS
    scripts/check_odom_error.py
     scripts/teensy_vel.py
+    scripts/plot_path.py
 
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
