@@ -1,13 +1,17 @@
     <launch>
 
 
-    <node pkg="tasks_utils" type="check_odom_error.py" name="check_odom_error" />
-    
+    <node pkg="tasks_utils" type="convert_gt.py" name="convert_gt" />
+
+    <node pkg="tasks_utils" type="check_odom_error.py" name="check_odom_error" >
+        <param name="odom_topic" value="/odom" />
+    </node>
+
     <param name="use_sim_time" type="bool" value="true"/>
 
     <param name="image_transport" type="string" value="compressed"/>
 
-    <arg name="odom_topics" value="[/odom,/ground_truth2]" />
+    <arg name="odom_topics" value="[/odom,/ground_truth_local]" />
     <arg name="colours" value="[green,black]" />
 
     <node name="plot_gt_odom" pkg="tasks_utils" type="plot_path.py" output="screen">
@@ -15,12 +19,6 @@
         <rosparam param="colours" subst_value="True"> $(arg colours) </rosparam> 
         <param name="saving_path" value="$(find tasks_utils)/figures/odom.png" />
     </node>
-
-<!--     <node name="plot_est_odom" pkg="tasks_utils" type="plot_path.py" output="screen"> 
-        <param name="odom_topic" value="/odom" />
-        <param name="saving_path" value="$(find tasks_utils)/figures" />
-    </node>
- -->
 
 
    </launch>

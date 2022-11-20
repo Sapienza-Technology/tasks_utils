@@ -161,11 +161,11 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
  catkin_install_python(PROGRAMS
-   scripts/check_odom_error.py
-    scripts/teensy_vel.py
+    scripts/check_odom_error.py
+    scripts/firmware_velocity.py
     scripts/plot_path.py
-
-   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    scripts/convert_gt.py
+    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
 ## Mark executables for installation

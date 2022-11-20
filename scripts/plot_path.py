@@ -27,7 +27,8 @@ def callback(*all_data):
 
         x=data.pose.pose.position.x
         y=data.pose.pose.position.y
-        print("topic:",topic,"x:",x,"y:",y)
+        #print only first 3 decimals
+        print("topic: %s | x:%.3f y:%.3f" % (topic,x,y))
         #print(f"got data for topic {path_data['label']}:",x,y)
         #ignore if null point or point too close to the previous one
         if (x==0 and y==0) or (np.linalg.norm(np.array([x,y])-params["paths"][topic]["path"][-1])<0.02):
@@ -37,7 +38,8 @@ def callback(*all_data):
         #print("topic:",path_data["label"],"\n",path_data["path"])
     
         if params["num_points"] % params["points_batch"] == 0:
-            print("saving location:",params["saving_path"])
+            print("\nSaving picture:\n\tlocation: ",params["saving_path"])
+            print()
             ax.clear()
             for topic in params["odom_topics"]:
                 path=params["paths"][topic]["path"]
@@ -47,7 +49,7 @@ def callback(*all_data):
             try:
                 fig.savefig(params["saving_path"])
             except:
-                print("error saving figure")
+                print("\nError saving figure\n")
         params["rate"].sleep()
 
 
