@@ -165,6 +165,7 @@ include_directories(
     scripts/firmware_velocity.py
     scripts/plot_path.py
     scripts/convert_gt.py
+    scripts/plot_odom_error.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
