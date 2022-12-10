@@ -4,7 +4,9 @@ This launch file launch a node that take /zed2/left/image_rect_color /zed2/right
 in compressed version and republish them. SO other nodes can use it. -->
 <launch>
 
-    <node pkg="tasks_utils" type="get_compressed_image_exe" name="get_compressed_image_exe"  output="screen">
+    <node pkg="rosbag" type="play" name="player" output="screen" args="--pause $(find tasks_utils)/bags/test.bag"/>
+    
+    <node pkg="tasks_utils" type="get_compressed_image_exe" name="get_compressed_image_exe"  output="log">
         <param name="image_transport" value="compressed" />
     </node>
 

@@ -42,6 +42,11 @@ def measure_error(est_odom,gt_odom,params):
     error=sqrt((gt_x-x)**2+(gt_y-y)**2)
     print("error: %.4f" % error)
 
+    #check if is an outlier by comparing the error with the previous one
+    if len(params["errors"])>0 and error>params["errors"][-1]*3:
+        print("Outlier detected, ignoring it")
+        return
+
     #plot the error
     params["errors"].append(error)
     params["times"].append((rospy.Time.now()-start_time).to_sec())
