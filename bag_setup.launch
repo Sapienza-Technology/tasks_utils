@@ -1,8 +1,7 @@
 
-<!-- Path: bag_setup.launch -->
-<!-- Set param _image_transport:=compressed -->
-
-
+<!-- 
+This launch file launch a node that take /zed2/left/image_rect_color /zed2/right/image_rect_color
+in compressed version and republish them. SO other nodes can use it. -->
 <launch>
 
     <node pkg="tasks_utils" type="get_compressed_image_exe" name="get_compressed_image_exe"  output="screen">
