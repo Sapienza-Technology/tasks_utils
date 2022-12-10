@@ -16,7 +16,7 @@ fig = plt.figure()
 ax = fig.add_subplot(111)
 ax.set_xlabel('time (s)')
 ax.set_ylabel('error (m)')
-ax.set_title('Odometry Error')
+
 
 '''
 This node take the estimated position and the ground truth position and compute the error between them and plot it
@@ -59,6 +59,7 @@ def check_odom_error():
     rospy.init_node('check_odom_error_plot', anonymous=True)
 
     start_time=rospy.Time.now()
+
     params={
         "start_time":start_time,
         "errors":[],
@@ -67,6 +68,8 @@ def check_odom_error():
         "saving_path": rospy.get_param("~saving_path", "figures/odom_error.png")
     }
     odom_topic=rospy.get_param('~odom_topic')
+    plot_title=rospy.get_param('~plot_title', "odom error")
+    ax.set_title(plot_title)
     print("getting odom from topic:",odom_topic)
 
     est_odom = message_filters.Subscriber(odom_topic, Odometry)

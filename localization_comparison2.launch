@@ -6,21 +6,28 @@
     <node pkg="tasks_utils" type="plot_odom_error.py" name="plot_odom_error"  output="screen">
         <param name="odom_topic" value="/odom" />
         <param name="gt_odom_topic" value="/ground_truth_local" />
-        <param name="saving_path" value="$(find tasks_utils)/figures/odom_error.png" />
+        <param name="plot_title" value="Odometry error" />
+        <param name="saving_path" value="$(find tasks_utils)/figures/VO_error.png" />
     </node>
+
+    <node pkg="tasks_utils" type="plot_odom_error.py" name="plot_odom_error2"  output="screen">
+        <param name="odom_topic" value="/odometry/filtered" />
+        <param name="plot_title" value="filtered Odometry error" />
+        <param name="gt_odom_topic" value="/ground_truth_local" />
+        <param name="saving_path" value="$(find tasks_utils)/figures/VO_EKF_error.png" />
+    </node>
+
 
     <param name="use_sim_time" type="bool" value="true"/>
 
     <param name="image_transport" type="string" value="compressed"/>
 
-    <arg name="odom_topics" value="[/ground_truth_local,/odom]" />
-    <arg name="colours" value="[green,black,red]" />
+    <arg name="odom_topics" value="[/ground_truth_local,/odom,/odometry/filtered]" />
+    <arg name="colours" value="[black,green,red]" />
 
     <node name="plot_gt_odom" pkg="tasks_utils" type="plot_path.py" output="screen">
         <rosparam param="odom_topics" subst_value="True"> $(arg odom_topics) </rosparam> 
         <rosparam param="colours" subst_value="True"> $(arg colours) </rosparam> 
         <param name="saving_path" value="$(find tasks_utils)/figures/odom.png" />
     </node>
-
-
    </launch>

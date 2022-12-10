@@ -1,0 +1,13 @@
+
+<!-- Path: bag_setup.launch -->
+<!-- Set param _image_transport:=compressed -->
+
+
+<launch>
+
+    <node pkg="tasks_utils" type="get_compressed_image_exe" name="get_compressed_image_exe"  output="screen">
+        <param name="image_transport" value="compressed" />
+    </node>
+
+
+</launch>
