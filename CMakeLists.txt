@@ -86,6 +86,7 @@ target_link_libraries(get_compressed_image_exe
     scripts/plot_path.py
     scripts/convert_gt.py
     scripts/plot_odom_error.py
+    log_nodes/plot_odom_quality.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
