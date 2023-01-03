@@ -43,10 +43,6 @@ def measure_error(est_odom,gt_odom,params):
     #euclidean distance between ground truth position and estimated position
     error=sqrt((gt_x-x)**2+(gt_y-y)**2)
     print("error: %.4f" % error)
-    #if error graeter than limit change limit
-    if error>ax.get_ylim()[1]:
-        ax.set_ylim(0, error*1.2)
-    
 
     #check if is an outlier by comparing the error with the previous one
     if len(params["errors"])>0 and error>0.1 and error>params["errors"][-1]*3:
@@ -54,6 +50,11 @@ def measure_error(est_odom,gt_odom,params):
         #plot a blue circle with a certain size
         #ax.plot((rospy.Time.now()-start_time).to_sec(),error,'bo',markersize=10)
         return
+        
+    #if error graeter than limit change limit
+    if error>ax.get_ylim()[1]:
+        ax.set_ylim(0, error*1.2)
+    
 
     #plot the error
     params["errors"].append(error)
