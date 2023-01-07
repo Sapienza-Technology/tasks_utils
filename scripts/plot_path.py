@@ -43,6 +43,9 @@ def callback(*all_data):
             ax.clear()
             for topic in params["odom_topics"]:
                 path=params["paths"][topic]["path"]
+                ax.set_xlabel('x(m)')
+                ax.set_ylabel('y(m)')
+                ax.set_title('Path')
                 ax.plot(path[:,0], path[:,1],label=params["paths"][topic]["label"],color=params["paths"][topic]["color"])
                 ax.legend()
                 #update the figure
