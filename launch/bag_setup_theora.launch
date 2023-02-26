@@ -1,0 +1,14 @@
+
+<!-- 
+This launch file launch a node that take /zed2/left/image_rect_color /zed2/right/image_rect_color
+in compressed version and republish them. SO other nodes can use it. -->
+<launch>
+
+    <node pkg="rosbag" type="play" name="player" output="screen" args="--pause $(find tasks_utils)/bags/test2021.bag"/>
+    
+    <node pkg="tasks_utils" type="get_compressed_image_exe" name="get_compressed_image_exe"  output="log">
+        <param name="image_transport" value="theora" />
+    </node>
+
+
+</launch>
