@@ -42,13 +42,13 @@ def measure_error(est_odom,gt_odom,params):
  
     #euclidean distance between ground truth position and estimated position
     error=sqrt((gt_x-x)**2+(gt_y-y)**2)
-    print("error: %.4f" % error)
+    print(params["topic"],"error: %.4f" % error)
 
     #check if is an outlier by comparing the error with the previous one
     if len(params["errors"])>0 and error>0.1 and error>params["errors"][-1]*3:
         print("Outlier detected")
         #plot a blue circle with a certain size
-        #ax.plot((rospy.Time.now()-start_time).to_sec(),error,'bo',markersize=10)
+        ax.plot((rospy.Time.now()-start_time).to_sec(),error,'bo',markersize=10)
         return
         
     #if error graeter than limit change limit
@@ -59,7 +59,7 @@ def measure_error(est_odom,gt_odom,params):
     #plot the error
     params["errors"].append(error)
     params["times"].append((rospy.Time.now()-start_time).to_sec())
-    #plot every 50 messages
+    #plot every x messages
     if  params["counter_received"]%20==0:
         ax.plot(params["times"],params["errors"],'r')
         #plot figure if file does not exist, create it
@@ -74,14 +74,15 @@ def check_odom_error():
 
     start_time=rospy.Time.now()
 
+    odom_topic=rospy.get_param('~odom_topic')
     params={
         "start_time":start_time,
         "errors":[],
         "times":[],
         "counter_received":0,
-        "saving_path": rospy.get_param("~saving_path", "figures/odom_error.png")
+        "saving_path": rospy.get_param("~saving_path", "figures/odom_error.png"),
+        "topic": odom_topic
     }
-    odom_topic=rospy.get_param('~odom_topic')
     plot_title=rospy.get_param('~plot_title', "odom error")
     ax.set_title(plot_title)
     print("getting odom from topic:",odom_topic)
