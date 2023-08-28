@@ -89,6 +89,7 @@ target_link_libraries(get_compressed_image_exe
     log_nodes/plot_odom_quality.py
     scripts/firmware_velocity_LEO.py
     scripts/firmware_CC8.py
+    scripts/capture_camera.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
