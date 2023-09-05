@@ -10,16 +10,20 @@ class ImageSaver:
     def __init__(self):
         self.bridge = CvBridge()
         self.image_count = 0
-        self.image_dir = os.path.expanduser("~") + "/figures"
+        path =os.path.dirname(os.path.realpath(__file__))
+        path=os.path.dirname(path)
+        path=path+"/not_ros/images_from_ros"
+        self.image_dir=path
         print("image dir: ", self.image_dir)
         if not os.path.exists(self.image_dir):
             os.makedirs(self.image_dir)
 
     def save_image(self):
-        data=rospy.wait_for_message("/usb_cam/image_raw", Image)
+        data=rospy.wait_for_message("/camera/image_raw", Image)
         cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        cv2.imwrite(self.image_dir + "/image%04i.png" % self.image_count, cv_image)
+        cv2.imwrite(self.image_dir + f"/image{self.image_count}.png", cv_image)
         self.image_count += 1
+        print("Image saved, save count: ", self.image_count)
 
 
 def main():

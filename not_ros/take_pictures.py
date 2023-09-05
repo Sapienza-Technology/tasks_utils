@@ -9,6 +9,7 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord(' '):
         print('Click')
         cv2.imwrite('not_ros/images/pic'+str(count)+'.jpg',frame)
+        print("path", 'not_ros/images/pic'+str(count)+'.jpg')                                                                                                                                                                               
         count += 1
     if cv2.waitKey(1) & 0xFF == ord('q'):
         print('Quit')

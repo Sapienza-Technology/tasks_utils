@@ -1,0 +1,9 @@
+<launch>
+
+node that takes arguments from command line
+list of numbers from argument tags:=
+
+<node name="test_cmd" pkg="tasks_utils" type="input_from_cmd.py" output="screen"  args="$(arg tags)" >
+</node>
+
+</launch>

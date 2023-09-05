@@ -11,7 +11,7 @@ num_intersections_in_x = 10
 num_intersections_in_y = 7
 
 # Size of square in meters
-square_size = 0.025
+square_size = 0.0246
 
 # Arrays to store 3D points and 2D image points
 obj_points = []
@@ -20,28 +20,6 @@ img_points = []
 
 def create_param_file(params):
     #create a yaml file in the format:
-    '''
-    image_width: 640
-    image_height: 480
-    camera_name: usb_cam
-    camera_matrix:
-    rows: 3
-    cols: 3
-    data: [445.10792629,   0.0 ,337.72928031,  0.0 ,  445.48201089 ,246.31395522,  0.0,0.0,1.0]
-    distortion_model: plumb_bob
-    distortion_coefficients:
-    rows: 1
-    cols: 5
-    data: [ 0.11847053, -0.35759139 , 0.00148395,  0.00276497 , 0.61140408]
-    rectification_matrix:
-    rows: 3
-    cols: 3
-    data: [1, 0.0, 0.0, 0.0, 1, 0.0, 0.0, 0.0, 1]
-    projection_matrix:
-    rows: 3
-    cols: 4
-    data: [445.10792629,   0.0 ,        337.72928031, 0.0, 445.48201089 ,246.31395522, 0.0, 0.0, 1.0, 0.000000, 1.000000, 0.000000]
-    '''
 
     #create a dictionary
     data = dict()
@@ -64,7 +42,7 @@ def create_param_file(params):
     data['projection_matrix'] = dict()
     data['projection_matrix']['rows'] = 3
     data['projection_matrix']['cols'] = 4
-    data['projection_matrix']['data'] = params['K'].flatten().tolist() + [0.0, 1.0, 0.0, 0.0]
+    data['projection_matrix']['data'] = params['K'].flatten().tolist() + [0.0, 1.0, 0.0]
 
     #write in a yaml file
     with open ('params/camera_params.yaml', 'w') as f:
@@ -78,12 +56,12 @@ object_points = object_points*square_size
 #print current dir
 print("Current dir: ", os.getcwd())
 
-imgs=os.listdir('not_ros/images')
+imgs=os.listdir('not_ros/images_from_ros')
 
 img_shape=None
 
 for img_name in imgs:
-    img = cv2.imread(os.path.join('not_ros/images',img_name))
+    img = cv2.imread(os.path.join('not_ros/images_from_ros',img_name))
     gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
     img_shape= gray.shape[::-1]
 
@@ -99,8 +77,8 @@ for img_name in imgs:
 
         # Draw and display the corners
         drawn_img = cv2.drawChessboardCorners(img, (num_intersections_in_x,num_intersections_in_y), corners,ret)
-        #cv2.imshow('img',drawn_img)
-        #cv2.waitKey(500)
+        cv2.imshow('img',drawn_img)
+        cv2.waitKey(500)
 
     cv2.destroyAllWindows()
 print("img_shape = ", img_shape)
