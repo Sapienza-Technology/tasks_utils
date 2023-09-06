@@ -11,6 +11,22 @@ import yaml
 class CameraSetup(object):
     def __init__(self,params):
         self.bridge = CvBridge()
+        #get available device indexes
+        index=0
+        arr=[]
+        while True:
+            cap = cv2.VideoCapture(index)
+            if not cap.read()[0]:
+                break
+            else:
+                arr.append(index)
+            cap.release()
+            index += 1
+        print("Available devices: ",arr)
+        if params["device"] not in arr:
+            print("Device not available")
+            exit()
+
         self.cap = cv2.VideoCapture(params["device"])
         self.cap.set(3, params["width"])
         self.cap.set(4, params["height"])
