@@ -13,4 +13,5 @@ while True:
         count += 1
     if cv2.waitKey(1) & 0xFF == ord('q'):
         print('Quit')
+        cap.release()
         break

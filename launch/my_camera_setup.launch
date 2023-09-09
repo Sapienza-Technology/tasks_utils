@@ -5,8 +5,8 @@ Per vedere le webcam collegate al pc e il relativo device:
     v4l2-ctl --list-devices
 
 <group ns="camera">
-<!-- <node name="camera_setup" pkg="tasks_utils" type="camera_setup.py" output="screen" >
-    <param name="device " value="0" />
+<node name="camera_setup" pkg="tasks_utils" type="camera_setup.py" output="screen" >
+    <param name="device " value="2" />
     <param name="width" value="1920" />
     <param name="height" value="1080" />
     <param name="fps" value="30" />
@@ -14,8 +14,8 @@ Per vedere le webcam collegate al pc e il relativo device:
     <param name="camera_frame_id" value="usb_cam" />
     <param name="camera_name" value="usb_cam" />
 
-</node> -->
-<node name="camera_setup" pkg="tasks_utils" type="camera_setup.py" output="screen" >
+</node>
+<!-- <node name="camera_setup" pkg="tasks_utils" type="camera_setup.py" output="screen" >
     <param name="device " value="0" />
     <param name="width" value="640" />
     <param name="height" value="480" />
@@ -24,7 +24,7 @@ Per vedere le webcam collegate al pc e il relativo device:
     <param name="camera_frame_id" value="usb_cam" />
     <param name="camera_name" value="usb_cam" />
 
-</node>
+</node> -->
 
 </group>
 
