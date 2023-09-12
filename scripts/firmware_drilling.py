@@ -1,14 +1,9 @@
 """
 ROS node that waits for input of the user and send the command to the firmware
 
-up and down arrow:  move stepper up and down
-if s is pressed:
-    if d is pressed: + and - : increase and decrease drilling speed
-    if s is pressed: + and - : increase and decrease stepper speed
 
 send a message using a Float32MultiArray with 3 numbers:
-Stepper position, stepper speed, drilling speed [0,1]
-
+Stepper position, stepper speed, drilling speed [0 to 1]
 
 """
 
