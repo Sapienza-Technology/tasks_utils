@@ -35,7 +35,7 @@ def main():
         if S (Stepper) is pressed:increase stepper speed
         + or - : switch speed increase with speed decrease
         I to invert drilling rotation
-        SPACE to stop the drill
+        SPACE to start and stop the drill
     q to quit
     """
     settings=termios.tcgetattr(sys.stdin)
@@ -45,6 +45,7 @@ def main():
     drill_speed = 0.1
     rate = rospy.Rate(30) # 10hz
     increasing = True
+    stop=True
     sign_drill = 1 #move clockwise or counterclockwise
     while not rospy.is_shutdown():
         pressed=False
@@ -72,9 +73,12 @@ def main():
             print("Stepper speed: ", stepper_speed)
             pressed=True
         elif key == ' ':
-            drill_msg[2] = 0
-            drill_msg[1] = 0
-            print("STOP!")
+            if stop:
+                print("START!")
+                stop=False
+            else:
+                print("STOP!")
+                stop=True
             pressed=True
         elif key == '+':
             increasing = True
@@ -95,19 +99,28 @@ def main():
             
         elif key == 'q':
             print("Exit..")
+            #stop
+            ros_msg = Float32MultiArray()
+            ros_msg.data = [drill_msg[0], 0, 0]
+            pub.publish(ros_msg)
+
             break
         else:
             if (key == '\x03'):
                 break
-        if pressed:
-            print("Stepper position: ", drill_msg[0], "Stepper speed: ", stepper_speed, "Drill speed: ", drill_speed)
-        ros_msg = Float32MultiArray()
+        if stop:
+            ros_msg = Float32MultiArray()
+            ros_msg.data = [drill_msg[0], drill_msg[1], 0]
+            pub.publish(ros_msg)
+        else:
+            if pressed:
+                print("Stepper position: ", drill_msg[0], "Stepper speed: ", stepper_speed, "Drill speed: ", drill_speed)
+                ros_msg = Float32MultiArray()
 
-        drill_msg[1] = stepper_speed
-        drill_msg[2] = drill_speed
-        ros_msg.data = drill_msg
-        pub.publish(ros_msg)
-        rate.sleep()
+                drill_msg[1] = stepper_speed
+                drill_msg[2] = drill_speed
+                ros_msg.data = drill_msg
+                pub.publish(ros_msg)
     
 
 if __name__ == '__main__':
