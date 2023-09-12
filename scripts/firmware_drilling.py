@@ -36,10 +36,10 @@ def main():
     ---------------------------
 
         I and K arrow:  move stepper up and down
-        if S (speed) is pressed:
-            if D (drill) is pressed: increase drilling speed
-            if S (Stepper) is pressed:increase stepper speed
-            + or - : switch speed increase with speed decrease
+        if D (drill) is pressed: increase drilling speed
+        if S (Stepper) is pressed:increase stepper speed
+        + or - : switch speed increase with speed decrease
+        I to invert drilling rotation
         SPACE to stop the drill
     q to quit
     """
@@ -50,6 +50,7 @@ def main():
     drill_speed = 0.1
     rate = rospy.Rate(30) # 10hz
     increasing = True
+    sign_drill = 1 #move clockwise or counterclockwise
     while not rospy.is_shutdown():
         pressed=False
         key = getKey(settings)
@@ -65,6 +66,7 @@ def main():
                 drill_speed *= 1.1
             else: 
                 drill_speed /= 1.1
+            drill_speed=sign_drill*drill_speed
             print("Drill speed: ", drill_speed)
             pressed=True
         elif key == 's':
@@ -85,6 +87,17 @@ def main():
         elif key == '-':
             increasing = False
             print("decreasing mode")
+        elif key == 'i':
+            print("inverting drilling rotation")
+            sign_drill *= -1
+            #do not stop and invert all together, send first stop
+            print("stopping drill")
+            ros_msg = Float32MultiArray()
+            ros_msg.data = [drill_msg[0], drill_msg[1], 0]
+            pub.publish(ros_msg)
+            time.sleep(1)
+            print("inverting drill rotation")
+            
         elif key == 'q':
             print("Exit..")
             break
