@@ -99,7 +99,7 @@ if __name__ == '__main__':
         "width": rospy.get_param("~width", 640),
         "height": rospy.get_param("~height", 480),
         "fps": rospy.get_param("~fps", 30),
-        "device": 2 ,#rospy.get_param("~device", 1),
+        "device": rospy.get_param("~device", 1),
         "compression": rospy.get_param("~compression", "MJPG"),
         "quality": rospy.get_param("~quality", 30),
         "camera_info_path": rospy.get_param("~camera_info_path", ""),

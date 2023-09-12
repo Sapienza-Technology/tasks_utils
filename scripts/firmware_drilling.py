@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 ROS node that waits for input of the user and send the command to the firmware
 
