@@ -9,9 +9,14 @@ Some scripts and files that could be useful during the development
 - **capture_camera**; simply subscribe to an image topic and save images when a button is pressed. Used to capture many images for calibration
 - energy_report_manager: read measurements from energy sensor and jetson library, plot them and send in topic. A draft implementation, to be used for pretty energy reports.
 - firmware_drilling: a draft implementation to be used to move and operate the drill, it should work but it was never tested
-- check_odom_error: compute the error between the real position of the robot (from Gazebo) and the estimated one
-- convert_gt: convert the global ground truth position from Gazebo to position with respect to starting position
-- plot_path : plot the path of the robot, getting data from multiple Odometry sources
+- check_odom_error: compute the error ( in 2D) between the real position of the robot (from Gazebo) and the estimated one.
+- convert_gt: convert the global ground truth position from Gazebo to position with respect to starting position.
+it receives from topic /ground_truth and republish the pose with respect to the starting position in the topic /ground_truth_local.
+- plot_path : plot the path of the robot, getting data from multiple Odometry sources.
+It accepts nav_msgs/Odometry topics. It uses diferent parameters (see related launch file for an example):
+  - odom_topics: list of topics to subscribe to
+  - colours: list of colors to use when plotting
+  - saving_path: where to save the plot
 - get_compressed_images: C++ node that subscribe to a pair of images from the zed camera and republish a compressed version, not useful, to remove.
 - 
 #### not ros
