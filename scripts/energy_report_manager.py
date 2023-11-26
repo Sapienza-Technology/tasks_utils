@@ -16,11 +16,20 @@ import os
 from jtop import jtop
 import matplotlib
 import matplotlib.pyplot as plt
+from std_msgs.msg import Float32
 
 
 def read_sensor_data():
     #read energy consumed from sensor
     #covnert to Watt
+    #wait for a messgae of type FLoat32 on /energy_raw
+    try:
+        value=rospy.wait_for_message("/energy_raw", Float32)
+        if value:
+            return value.data
+    except:
+        print("Error: no message received on /energy_raw")
+
     return 0
 
 
@@ -74,7 +83,7 @@ def main():
     #rospy.init_node("energy_report_manager", anonymous=True)
     #rospy.subscriber(params["rover_topic"], Twist, lambda msg: rover_callback(msg, params))
     rospy.init_node("energy_report_manager", anonymous=True)
-    #pub=rospy.publisher("energy_report", Float32, queue_size=10)
+    pub=rospy.publisher("energy_report", Float32, queue_size=10)
     jetson=jtop()
     jetson.start()
     rate=rospy.Rate(10)
@@ -83,22 +92,26 @@ def main():
     while True:
         try:
             # jetson.ok() will provide the proper update frequency
+            jetson_energy_consumed=0
             if jetson.ok():
                 
                 jetson_energy_consumed=jetson.stats['Power TOT'] # in W
-                total_energy+=jetson_energy_consumed
+                
                 energies["jetson"].append(jetson_energy_consumed)
                 # Read tegra stats
                 print(jetson_energy_consumed)
 
-                energy_from_sensor=read_sensor_data()  
+            energy_from_sensor=read_sensor_data()  
+            if energy_from_sensor==0 and jetson_energy_consumed:
+                total_energy+=jetson_energy_consumed
+            else:
                 total_energy+=energy_from_sensor
-                energies[params["in_use"]].append(energy_from_sensor)
+            energies[params["in_use"]].append(energy_from_sensor)
                 
             energies["total"].append(total_energy)
             energies["times"].append(time.time()-start_time)
             pub.publish(total_energy)
-            rate.sleep()
+            total_energy=0
         except KeyboardInterrupt:
             jetson.close()
             break

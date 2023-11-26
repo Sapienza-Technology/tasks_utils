@@ -5,10 +5,10 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /Localization1
         - /Localization1/GT_odom1/Shape1
-        - /Mapping1/Global costmap1
+        - /Mapping1
         - /Mapping1/Global costmap1/Status1
+        - /Map1/Status1
       Splitter Ratio: 0.5014492869377136
     Tree Height: 464
   - Class: rviz/Selection
@@ -29,7 +29,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: Image
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -212,7 +212,17 @@ Visualization Manager:
           Draw Behind: true
           Enabled: true
           Name: Map
-          Topic: /rtabmap/grid_map
+          Topic: /grid_map
+          Unreliable: false
+          Use Timestamp: false
+          Value: true
+        - Alpha: 0.699999988079071
+          Class: rviz/Map
+          Color Scheme: map
+          Draw Behind: true
+          Enabled: true
+          Name: Map
+          Topic: /my_map/grid_map
           Unreliable: false
           Use Timestamp: false
           Value: true
@@ -340,106 +350,22 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        base_footprint:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        base_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        camera_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        camera_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        erc_payload_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        rocker_L_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        rocker_R_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_FL_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_FR_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_RL_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_RR_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        zed2_baro_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        zed2_camera_center:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        zed2_left_camera_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        zed2_left_camera_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        zed2_mag_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        zed2_right_camera_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        zed2_right_camera_optical_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        zed2_temp_left_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        zed2_temp_right_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        zed2_tilt_head_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
       Update Interval: 0
       Value: true
       Visual Enabled: true
+    - Alpha: 0.699999988079071
+      Class: rviz/Map
+      Color Scheme: map
+      Draw Behind: true
+      Enabled: true
+      Name: Map
+      Topic: /my_map_updated/grid_map
+      Unreliable: false
+      Use Timestamp: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 255; 255; 255
@@ -468,7 +394,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10.275350570678711
+      Distance: 49.66834259033203
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -476,17 +402,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.4411557614803314
-        Y: 0.5672525763511658
-        Z: 1.2309707403182983
+        X: 15.221519470214844
+        Y: -2.2677106857299805
+        Z: 1.1087350845336914
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9947967529296875
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 3.1871907711029053
+      Yaw: 4.722190856933594
     Saved: ~
 Window Geometry:
   Displays:
