@@ -40,7 +40,7 @@ def linear2angular(l):
     return new_l.tolist()
 
 def publish_velocities(pub,velocities,angles):
-    print("sending velocities: "+str(velocities)+" angles: "+str(angles))
+    #print("sending velocities: "+str(velocities)+" angles: "+str(angles))
     msg=Float32MultiArray()
     msg.data=velocities+angles
     pub.publish(msg)
@@ -206,7 +206,7 @@ def callback(data,pub,rate,params):
         params["in_place_configuration"]=False
 
     #create multliarray
-    print("sending velocities: "+str(velocities)+" angles: "+str(angles))
+    #print("sending velocities: "+str(velocities)+" angles: "+str(angles))
     publish_velocities(pub,velocities,angles)
 
     rate.sleep()
