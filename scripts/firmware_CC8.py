@@ -193,6 +193,10 @@ def callback(data,pub,rate,params):
             params["in_place_configuration"]=True
             print("IN place, sending only steer")
             temp_velocities=[0,0,0,0,0,0]
+
+            publish_velocities(pub,temp_velocities,last_angles)
+            time.sleep(in_place_delay/2)
+            
             publish_velocities(pub,temp_velocities,angles)
             time.sleep(in_place_delay)
             print("IN place, starting rotation")
@@ -201,6 +205,10 @@ def callback(data,pub,rate,params):
         #If I was in place, wait wheel resetting before sending new velocities
         if params["in_place_configuration"]==True:
             print("in place configuration, waiting before moving")
+            
+            publish_velocities(pub,[0,0,0,0,0,0],[-max_steer,max_steer,max_steer,-max_steer])
+            time.sleep(in_place_delay/2)
+
             publish_velocities(pub,[0,0,0,0,0,0],[0,0,0,0])
             time.sleep(in_place_delay)
         params["in_place_configuration"]=False
