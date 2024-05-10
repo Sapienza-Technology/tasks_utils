@@ -89,6 +89,7 @@ target_link_libraries(get_compressed_image_exe
     log_nodes/plot_odom_quality.py
     scripts/firmware_velocity_LEO.py
     scripts/firmware_CC8.py
+    scripts/firmware_CC8_with_feedback.py
     scripts/capture_camera.py
     scripts/input_from_cmd.py
     scripts/camera_setup.py
