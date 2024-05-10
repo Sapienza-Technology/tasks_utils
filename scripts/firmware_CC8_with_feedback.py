@@ -1,7 +1,14 @@
+"""
+Firmware for the CC8 rover.
+It subscribes to messages on the /cmd_vel topic and computes the wheel velocities and angles for the 6 driving wheels and 4 steering wheels.
 
+It also checks if the rover is not going to the desired speed and increase the speed of the wheels accordingly.
+
+"""
 import rospy
 from  geometry_msgs.msg import Twist
 from std_msgs.msg import Float32MultiArray
+from nav_msgs.msg import Odometry
 
 import math
 import time
@@ -9,9 +16,9 @@ import numpy as np
 
 import threading
 
+#** Rover parameters
 wheel_radius=0.8
 d=0.94 #distance between the wheels along y axis
-
 #FRONT, MID, REAR (first left, then right)
 wheel_positions=[ 
     [0.245,0.4],
@@ -22,34 +29,76 @@ wheel_positions=[
     [-0.2575,-0.43]
 ]
 
+#** Firmware parameters
 max_steer=math.pi/4
 MAX_V=1
 MAX_W=1/wheel_radius
 IN_PLACE_VEL= MAX_V/4
+in_place_delay=3 #How much to wait for wheel to be in position before starting inplace movement
+enable_check_reset_wheel=True
 
+#** Variables
 last_angles=[0,0,0,0]
 is_robot_stopped=False
 rover_threshold_stopped=3.0 #how many seconds to wait when stopped before resetting the wheels
 last_stopped_time=0
-thread_check_stopped=None
+thread_check_wheel_reset=None
 
+current_speed = 0
 
 
 def linear2angular(l):
     new_l=l/0.08
     return new_l.tolist()
 
-def publish_velocities(pub,velocities,angles):
+def publish_velocities(pub,velocities,angles,params):
     print("sending velocities: "+str(velocities)+" angles: "+str(angles))
+    params["last_angles"]=angles
     msg=Float32MultiArray()
     msg.data=velocities+angles
     pub.publish(msg)
+
+def odometry_callback(data,params):
+    params["current_speed"] = math.sqrt(data.twist.twist.linear.x**2 + data.twist.twist.linear.y**2)
+
+    current_twist=params.get("current_twist",None)
+    if current_twist is not None and params["in_place_configuration"]==False:
+        #if is not an in place rotation
+        if abs(current_twist.linear.x)>0.001:
+            desired_speed = current_twist.linear.x
+            speed_error = desired_speed - current_speed
+            print("current_speed {} desired_speed {} speed_error {}".format(current_speed,desired_speed,speed_error))
+            
+            current_wheel_vel=params.get("current_wheels_vel",None)
+            if current_wheel_vel is None or len(current_wheel_vel)==0:
+                return
+            
+            # PD controller
+            Kp = 0.1  # Proportional gain
+            Kd = 0.01  # Derivative gain
+            previous_error = params.get("previous_error", 0)
+            derivative = (speed_error - previous_error) / 0.1  # Assuming the function is called every 0.1 seconds
+            correction = Kp * speed_error + Kd * derivative
+            print("computed speed correction: ", correction)
+
+            # Update wheel velocities
+            for i in range(len(current_wheel_vel)):
+                current_wheel_vel[i] += correction
+                current_wheel_vel[i] = min(MAX_V, current_wheel_vel[i])
+                current_wheel_vel[i] = max(-MAX_V, current_wheel_vel[i])
+
+            params["previous_error"] = speed_error
+
+            #create multliarray
+            publish_velocities(params["pub"],current_wheel_vel,params["last_angles"],params)
+
+
 
 '''
 Thread that check if the robot is stopped for more than rover_threshold_stopped seconds.
 If so, reset the wheels angles to 0
 '''
-def check_robot_stopped(params):
+def check_wheel_reset(params):
     print("thread for resetting wheel after {} seconds of rover stopped started".format(params["rover_threshold_stopped"]))
     pub=params["pub"]
     rover_threshold_stopped=params["rover_threshold_stopped"]
@@ -64,15 +113,12 @@ def check_robot_stopped(params):
                 angles=[0,0,0,0]
 
                 #create multliarray
-                publish_velocities(pub,velocities,angles)
+                publish_velocities(pub,velocities,angles,params)
                 time.sleep(0.5)
             else:
                 time.sleep(0.5)
     except KeyboardInterrupt:
         pass
-
-
-
 
 
 '''
@@ -105,6 +151,7 @@ def compute_wheel_velocities(data,params):
         wheel_angles=last_angles
         params["last_stopped_time"]=time.time()
         params["is_robot_stopped"]=True
+        params["current_wheels_vel"]=[]
         return wheel_velocities,wheel_angles
     else:
         params["is_robot_stopped"]=False
@@ -128,6 +175,9 @@ def compute_wheel_velocities(data,params):
             vel = w*r*sgn
             wheel_velocities[i]=IN_PLACE_VEL*sgn
         wheel_velocities=linear2angular(np.array(wheel_velocities))
+
+        #I don't want PD controller to interfere with in place rotation
+        params["current_wheels_vel"]= []
         return wheel_velocities,wheel_angles
     
   
@@ -179,11 +229,12 @@ def compute_wheel_velocities(data,params):
             steer_idx+=1
     wheel_velocities=linear2angular(np.array(wheel_velocities))
     params["last_angles"]=wheel_angles
+
+    params["current_wheels_vel"]=wheel_velocities
     return wheel_velocities,wheel_angles
 
 def callback(data,pub,rate,params):
-    in_place_delay=3 #How much to wait for wheel to be in position before starting inplace movement
-
+    params["current_twist"]=data
     velocities,angles=compute_wheel_velocities(data,params)
     print("input linear: "+str(data.linear.x)+" angular: "+str(data.angular.z))
     print("output velocities: "+str(velocities)+" angles: "+str(angles))
@@ -193,7 +244,7 @@ def callback(data,pub,rate,params):
             params["in_place_configuration"]=True
             print("IN place, sending only steer")
             temp_velocities=[0,0,0,0,0,0]
-            publish_velocities(pub,temp_velocities,angles)
+            publish_velocities(pub,temp_velocities,angles,params)
             time.sleep(in_place_delay)
             print("IN place, starting rotation")
 
@@ -201,13 +252,13 @@ def callback(data,pub,rate,params):
         #If I was in place, wait wheel resetting before sending new velocities
         if params["in_place_configuration"]==True:
             print("in place configuration, waiting before moving")
-            publish_velocities(pub,[0,0,0,0,0,0],[0,0,0,0])
+            publish_velocities(pub,[0,0,0,0,0,0],[0,0,0,0],params)
             time.sleep(in_place_delay)
         params["in_place_configuration"]=False
 
     #create multliarray
     print("sending velocities: "+str(velocities)+" angles: "+str(angles))
-    publish_velocities(pub,velocities,angles)
+    publish_velocities(pub,velocities,angles,params)
 
     rate.sleep()
     
@@ -220,22 +271,28 @@ def main():
     print("\n\n\navviato nodo firmware velocity\n\n\n")
     params={
         "in_place_configuration": False,
+        "in_place_delay": in_place_delay,
         "current_configuration": "linear", #linear or in place
         "last_angles": last_angles,
         "is_robot_stopped": is_robot_stopped,
         "rover_threshold_stopped": rover_threshold_stopped,
         "last_stopped_time": last_stopped_time,
         "pub": pub,
+        "current_speed": current_speed
     }
     print("starting subscriber")
     #subscriber pass data using lambda function
+
+    rospy.Subscriber("/odom", Odometry, lambda x: odometry_callback(x,params))
+
     rospy.Subscriber("/cmd_vel", Twist, lambda x: callback(x,pub,rate,params))
 
-    # Create a new thread that targets the check_robot_stopped function
-    thread_check_stopped = threading.Thread(target=check_robot_stopped, args=(params,))
+    if enable_check_reset_wheel:
+        # Create a new thread that targets the check_wheel_reset function
+        thread_check_wheel_reset = threading.Thread(target=check_wheel_reset, args=(params,))
 
-    # Start the thread
-    thread_check_stopped.start()  
+        # Start the thread
+        thread_check_wheel_reset.start()  
     
     rospy.spin()
 
@@ -246,4 +303,5 @@ if __name__ == '__main__':
         pass
     except KeyboardInterrupt:
         #stop thread
-        thread_check_stopped.join()
+        if enable_check_reset_wheel:
+            thread_check_wheel_reset.join()
