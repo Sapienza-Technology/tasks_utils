@@ -32,10 +32,12 @@ wheel_positions=[
 #** Firmware parameters
 max_steer=math.pi/4
 MAX_V=1
-MAX_W=1/wheel_radius
+MAX_W=MAX_V/wheel_radius
 IN_PLACE_VEL= MAX_V/4
 in_place_delay=3 #How much to wait for wheel to be in position before starting inplace movement
-enable_check_reset_wheel=True
+enable_check_reset_wheel=False
+odometry_topic="/odom"
+
 
 #** Variables
 last_angles=[0,0,0,0]
@@ -60,7 +62,7 @@ def publish_velocities(pub,velocities,angles,params):
 
 def odometry_callback(data,params):
     params["current_speed"] = math.sqrt(data.twist.twist.linear.x**2 + data.twist.twist.linear.y**2)
-
+    current_speed=params["current_speed"]
     current_twist=params.get("current_twist",None)
     if current_twist is not None and params["in_place_configuration"]==False:
         #if is not an in place rotation
@@ -74,7 +76,7 @@ def odometry_callback(data,params):
                 return
             
             # PD controller
-            Kp = 0.1  # Proportional gain
+            Kp = 0.5  # Proportional gain
             Kd = 0.01  # Derivative gain
             previous_error = params.get("previous_error", 0)
             derivative = (speed_error - previous_error) / 0.1  # Assuming the function is called every 0.1 seconds
@@ -82,12 +84,15 @@ def odometry_callback(data,params):
             print("computed speed correction: ", correction)
 
             # Update wheel velocities
+            print("Previous wheel velocities: ", current_wheel_vel)
             for i in range(len(current_wheel_vel)):
                 current_wheel_vel[i] += correction
-                current_wheel_vel[i] = min(MAX_V, current_wheel_vel[i])
-                current_wheel_vel[i] = max(-MAX_V, current_wheel_vel[i])
+                # current_wheel_vel[i] = min(MAX_W, current_wheel_vel[i])
+                # current_wheel_vel[i] = max(-MAX_W, current_wheel_vel[i])
 
             params["previous_error"] = speed_error
+
+            print("Updated wheel velocities: ", current_wheel_vel)
 
             #create multliarray
             publish_velocities(params["pub"],current_wheel_vel,params["last_angles"],params)
@@ -283,7 +288,7 @@ def main():
     print("starting subscriber")
     #subscriber pass data using lambda function
 
-    rospy.Subscriber("/odom", Odometry, lambda x: odometry_callback(x,params))
+    rospy.Subscriber(odometry_topic, Odometry, lambda x: odometry_callback(x,params))
 
     rospy.Subscriber("/cmd_vel", Twist, lambda x: callback(x,pub,rate,params))
 
