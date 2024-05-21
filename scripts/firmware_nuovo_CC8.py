@@ -21,6 +21,8 @@ wheel_positions=[
     [-0.2575,-0.43]
 ]
 
+last_angles = [0, 0, 0, 0]
+
 max_steer=math.pi/4
 MAX_V=1
 MAX_W=1/wheel_radius
@@ -30,11 +32,20 @@ def linear2angular(l):
     new_l=l/0.08
     return new_l.tolist()
 
+def publish_velocities(pub,velocities,angles):
+    formatted_velocities = [f"{v:.3f}" for v in velocities]
+    formatted_angles = [f"{a:.3f}" for a in angles]
+
+    print("\tsending velocities: "+str(formatted_velocities)+" angles: "+str(formatted_angles))
+    msg=Float32MultiArray()
+    msg.data=velocities+angles
+    pub.publish(msg)
+
 '''
 Given a twist message, compute the wheel velocities
 for a 6 driving wheels rover with 4 steering wheels
 '''
-def compute_wheel_velocities(data):
+def compute_wheel_velocities(data, params):
     print("\n")
     #to return
     wheel_velocities=[0,0,0,0,0,0]
@@ -49,11 +60,23 @@ def compute_wheel_velocities(data):
 
     vl=v - w*d/2
     vr=v + w*d/2
-    print("vl: "+str(vl)+" vr: "+str(vr))
+    print(f"vl: {vl:.3f}, vr: {vr:3f}")
+
+    if abs(v)<0.001 and abs(w)<0.001:
+        print("--- ROBOT STOPPED: waiting for move the steers")
+        wheel_velocities=[0,0,0,0,0,0]
+        wheel_angles=params["last_angles"]
+        print(f"lstopped, last_angles: {last_angles}")
+        params["last_stopped_time"]=time.time()
+        params["is_robot_stopped"]=True
+        return wheel_velocities,wheel_angles
+    else:
+        params["is_robot_stopped"]=False
 
     #IN PLACE ROTATION
     if abs(w)>0.001 and abs(v)<0.001:
         print("in place rotation")
+        
         wheel_angles=[-max_steer,max_steer,max_steer,-max_steer]
         
         for i in range(len(wheel_positions)):
@@ -119,12 +142,18 @@ def compute_wheel_velocities(data):
             wheel_angles[steer_idx]=angle
             steer_idx+=1
     wheel_velocities=linear2angular(np.array(wheel_velocities))
+    
+    params["last_angles"]=wheel_angles
+    print(f"last save: {wheel_angles}")
     return wheel_velocities,wheel_angles
 
 def callback(data,pub,rate,params):
-    velocities,angles=compute_wheel_velocities(data)
-    print("input linear: "+str(data.linear.x)+" angular: "+str(data.angular.z))
-    print("output velocities: "+str(velocities)+" angles: "+str(angles))
+    velocities,angles=compute_wheel_velocities(data, params)
+
+    print(f"input linear: {data.linear.x:.3f}, angular: {data.angular.z:.3f}")
+    #print("output velocities: "+str(velocities)+" angles: "+str(angles))
+
+    in_place_delay = 3
 
     msg=Float32MultiArray()
     if abs(angles[0])==max_steer and abs(angles[1])==max_steer:
@@ -132,18 +161,41 @@ def callback(data,pub,rate,params):
             params["in_place_configuration"]=True
             print("IN place, sending only steer")
             temp_velocities=[0,0,0,0,0,0]
-            msg.data=temp_velocities+angles
-            pub.publish(msg)
-            time.sleep(3)
-            print("IN place, starting rotation")
+            
+            #msg.data=temp_velocities+angles
+            #pub.publish(msg)
+            #time.sleep(3)
+
+            print("--- IN PLACE: stopping wheels")
+            publish_velocities(pub,temp_velocities,last_angles)
+            time.sleep(in_place_delay/2)
+
+            print("--- IN PLACE: turn steers")
+            publish_velocities(pub, temp_velocities, angles)
+            time.sleep(in_place_delay)
+
+
+            print("--- IN place: starting rotation")
     else:
+        
+        if params["in_place_configuration"]==True:
+
+            print("--- WAS IN PLACE: stopping wheels")
+            publish_velocities(pub,[0,0,0,0,0,0],[-max_steer,max_steer,max_steer,-max_steer])
+            time.sleep(in_place_delay/2)   
+
+            print("--- WAS IN PLACE: turning steers")
+            publish_velocities(pub,[0,0,0,0,0,0],angles)
+            time.sleep(in_place_delay)         
+
         params["in_place_configuration"]=False
 
 
     #create multliarray
-    msg.data=velocities+angles
+    #msg.data=velocities+angles
+    #pub.publish(msg)
 
-    pub.publish(msg)
+    publish_velocities(pub, velocities, angles)
 
     rate.sleep()
     
@@ -157,10 +209,40 @@ def main():
     params={
         "in_place_configuration": False,
         "current_configuration": "linear", #linear or in place
+        "pub": pub,
+        "last_angles": last_angles,
+        "last_stopped_time": time.time(),
+        "is_robot_stopped": True
+
     }
     #subscriber pass data using lambda function
     rospy.Subscriber("/cmd_vel", Twist, lambda x: callback(x,pub,rate,params))
-    rospy.spin()
+
+    #thread_check_stopped = threading.Thread(target=check_robot_stopped, args=(params,))
+
+    # Start the thread
+    #thread_check_stopped.start()  
+
+    #rospy.spin()
+
+    rover_threshold_stopped = 5
+
+    while not rospy.is_shutdown():
+        if params["is_robot_stopped"] == True and params['in_place_configuration'] == False:
+            last_stopped_time=  params["last_stopped_time"]
+            if abs( time.time() -last_stopped_time ) >= rover_threshold_stopped and params["is_robot_stopped"] == True:
+
+                print(f"--- ROBOT STOPPED: passed more than {rover_threshold_stopped}, resetting wheels")
+                velocities=[0,0,0,0,0,0]
+                angles=[0,0,0,0]
+
+                #create multliarray
+                publish_velocities(pub,velocities,angles)
+                time.sleep(1)    
+            
+                params["last_stopped_time"] = time.time()
+                params["is_robot_stopped"] = False
+
 
 if __name__ == '__main__':
     try:
