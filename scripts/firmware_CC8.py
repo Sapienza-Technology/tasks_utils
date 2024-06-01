@@ -27,10 +27,11 @@ max_steer=math.pi/4             #max steering angle [rad]
 MAX_V=1                         #max linear velocity [m/s]
 IN_PLACE_VEL= MAX_V/3           #velocity for in place rotation
 in_place_delay=4                #How much to wait for wheel to be in position before starting inplace movement [s]
-rover_threshold_stopped=3.0     #how many seconds to wait when rover is stopped before resetting the wheels [s]
 turning_ratio_threshold=0.6     #threshold on v/w ratio to avoid turning radius too small in ackermann steering 
-enable_steer_limit=False        #enable steering angle limit, if true the steering angle will be limited to max_steer
-
+enable_steer_limit = False      #enable steering angle limit, if true the steering angle will be limited to max_steer
+enable_lock_steer  = True      #enable lock steering, if true the steering angle will be locked to the last angle when the rover is stopped
+enable_steer_reset = True      #enable steering reset, if true the steering angle will be reset to 0 after some time when the rover is stopped
+steer_reset_timeout= 3.0        #how many seconds to wait when rover is stopped before resetting the wheels [s]
 
 #** FUNCTIONS
 
@@ -106,11 +107,13 @@ def compute_wheel_velocities(data,params):
     w=data.angular.z
 
     #*ROBOT STOPPED
-    #Stop wheels but maintain angle, it will be reset after some time
     if is_stop_command(data):
         print_rover_state("ROVER STOP")
         wheel_velocities=np.zeros(6)
-        wheel_angles=params["last_angles"]
+        wheel_angles=np.zeros(4)
+        if enable_lock_steer:
+            #Stop wheels but maintain angle
+            wheel_angles=params["last_angles"]
         params["last_stopped_time"]=time.time()
         params["is_robot_stopped"]=True
         return wheel_velocities,wheel_angles
@@ -174,7 +177,7 @@ def compute_wheel_velocities(data,params):
     wheel_velocities=np.zeros(6)
     wheel_angles=np.zeros(4)
 
-    #Compute wheel velocities
+    #* Compute wheel velocities
     for i in range(len(wheel_positions)):
         wheel_x=wheel_positions[i][0]
         wheel_y=wheel_positions[i][1]
@@ -204,12 +207,17 @@ def compute_wheel_velocities(data,params):
         elif angle < -math.pi/2:
             angle+=math.pi
         
-        if enable_steer_limit:
-            if angle > max_steer:
-                print("WARN: angle > max_steer, angle: ",angle)
-            wheel_angles[steer_idx]=min(angle,max_steer)
-
         wheel_angles[steer_idx]=angle
+
+        #Clamp steering angle to a maximum value
+        if enable_steer_limit:
+            if abs(angle) > max_steer:
+                print("WARN: angle > max_steer, angle: ",angle)
+            if angle > max_steer:
+                wheel_angles[steer_idx]=max_steer
+            elif angle < -max_steer:
+                wheel_angles[steer_idx]=-max_steer
+
         steer_idx+=1
 
     #Convert linear velocities to angular velocities and return
@@ -258,8 +266,10 @@ def main():
     rospy.init_node('firmware_CC8', anonymous=True)
     rate = rospy.Rate(30)
 
-    print("\n---------Firmware CC8 Started----------\n")
+
     D=compute_rover_width()
+
+    print("\n---------Firmware CC8 Started----------\n")
 
     #Init common parameters and variables
     params={
@@ -276,22 +286,28 @@ def main():
     
     rospy.Subscriber("/cmd_vel", Twist, lambda x: callback(x,params)) 
 
+
+
     try:
         while not rospy.is_shutdown():
             #Check if the robot is stopped for more than some seconds. If so, reset the wheels angles to 0
             is_robot_stopped=params["is_robot_stopped"]
             last_stopped_time=params["last_stopped_time"]
             reset_done=params["rover_reset_done"]
-            if not reset_done and is_robot_stopped and time.time()-last_stopped_time > rover_threshold_stopped:
+            should_reset= (time.time()-last_stopped_time > steer_reset_timeout)
+            #Steer reset does not make sense if lock steering is disabled
+            is_enabled = enable_steer_reset and enable_lock_steer
+            if is_enabled and not reset_done and is_robot_stopped and should_reset:
                 
                 #reset only if at least one angle is not 0
                 if sum(params["last_angles"])>0:
-                    #print("rover stopped for more than {} seconds, resetting wheels".format(rover_threshold_stopped)) 
+                    #print("rover stopped for more than {} seconds, resetting wheels".format(steer_reset_timeout)) 
                     #reset wheels angles
                     reset_wheels(params)
                     params["rover_reset_done"]=True
+                    params["last_angles"]=np.zeros(4)
 
-            time.sleep(0.1) #don't do the check continuously
+            rate.sleep()
     except KeyboardInterrupt:
         print("keyboard interrupt")
 
