@@ -79,9 +79,17 @@ def odometry_callback(data,params):
             Kp = 0.5  # Proportional gain
             Kd = 0.01  # Derivative gain
             previous_error = params.get("previous_error", 0)
-            derivative = (speed_error - previous_error) / 0.1  # Assuming the function is called every 0.1 seconds
+            time_now = time.time()
+            time_previous_error = params.get("time_previous_error")
+            dt=time_now-time_previous_error if time_previous_error is not None else 0
+            if dt==0:
+                params["time_previous_error"]=time_now
+                print("dt is 0")
+                return
+            derivative = (speed_error - previous_error) / dt  # Assuming the function is called every 0.1 seconds
             correction = Kp * speed_error + Kd * derivative
             print("computed speed correction: ", correction)
+            params["time_previous_error"]=time_now
 
             # Update wheel velocities
             print("Previous wheel velocities: ", current_wheel_vel)
@@ -283,7 +291,8 @@ def main():
         "rover_threshold_stopped": rover_threshold_stopped,
         "last_stopped_time": last_stopped_time,
         "pub": pub,
-        "current_speed": current_speed
+        "current_speed": current_speed,
+        "time_previous_error": time.time()
     }
     print("starting subscriber")
     #subscriber pass data using lambda function
