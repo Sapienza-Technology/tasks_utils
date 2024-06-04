@@ -28,6 +28,7 @@ MAX_V=1                         #max linear velocity [m/s]
 IN_PLACE_VEL= MAX_V/3           #velocity for in place rotation
 in_place_delay=4                #How much to wait for wheel to be in position before starting inplace movement [s]
 turning_ratio_threshold=0.6     #threshold on v/w ratio to avoid turning radius too small in ackermann steering 
+in_place_on_sharp_turn = True   #if true, the rover will rotate in place when turning with a small radius,otherwise it will decrease the angular velocity
 enable_steer_limit = False      #enable steering angle limit, if true the steering angle will be limited to max_steer
 enable_lock_steer  = True      #enable lock steering, if true the steering angle will be locked to the last angle when the rover is stopped
 enable_steer_reset = True      #enable steering reset, if true the steering angle will be reset to 0 after some time when the rover is stopped
@@ -93,10 +94,34 @@ def is_in_place_rotation_command(data):
         return True
     return False
 
+def is_in_place_type(type):
+    if type=="IN_PLACE":
+        return True
+    return False
+
 def is_stop_command(data):
     if abs(data.linear.x)<0.001 and abs(data.angular.z)<0.001:
         return True
     return False
+
+#Compute the wheel velocities and angles for in place rotation
+def get_in_place_outputs(w):
+    wheel_velocities=np.zeros(6)
+    wheel_angles=[-max_steer,max_steer,max_steer,-max_steer]
+    for i in range(len(wheel_positions)):
+        wheel_x=wheel_positions[i][0]
+        wheel_y=wheel_positions[i][1]
+        
+        r=math.sqrt(wheel_x*wheel_x+wheel_y*wheel_y)
+
+        #cambia segno se ruota in senso sbagliato
+        sgn= 1 if wheel_y < 0 else -1
+        if w<0: 
+            sgn*=-1
+        vel = w*r*sgn
+        wheel_velocities[i]=IN_PLACE_VEL*sgn
+    wheel_velocities=linear2angular(np.array(wheel_velocities))
+    return wheel_velocities,wheel_angles,"IN_PLACE"
 '''
 Given a twist message, compute the wheel velocities
 for a 6 driving wheels rover with 4 steering wheels
@@ -116,29 +141,14 @@ def compute_wheel_velocities(data,params):
             wheel_angles=params["last_angles"]
         params["last_stopped_time"]=time.time()
         params["is_robot_stopped"]=True
-        return wheel_velocities,wheel_angles
+        return wheel_velocities,wheel_angles,"STOP"
     else:
         params["is_robot_stopped"]=False
 
     #*IN PLACE ROTATION
     if is_in_place_rotation_command(data):
         print_rover_state("IN PLACE ROTATION")
-        wheel_angles=[-max_steer,max_steer,max_steer,-max_steer]
-        
-        for i in range(len(wheel_positions)):
-            wheel_x=wheel_positions[i][0]
-            wheel_y=wheel_positions[i][1]
-            
-            r=math.sqrt(wheel_x*wheel_x+wheel_y*wheel_y)
-
-            #cambia segno se ruota in senso sbagliato
-            sgn= 1 if wheel_y < 0 else -1
-            if w<0: 
-                sgn*=-1
-            vel = w*r*sgn
-            wheel_velocities[i]=IN_PLACE_VEL*sgn
-        wheel_velocities=linear2angular(np.array(wheel_velocities))
-        return wheel_velocities,wheel_angles
+        return get_in_place_outputs(w)
     
     #* GOING STRAIGHT
     if abs(w)<1e-3:
@@ -146,7 +156,7 @@ def compute_wheel_velocities(data,params):
         wheel_velocities=[v,v,v,v,v,v]
         wheel_angles= np.zeros(4)
         params["last_angles"]=wheel_angles #update last angles
-        return wheel_velocities,wheel_angles
+        return wheel_velocities,wheel_angles,"STRAIGHT"
 
 
     #* ACKERMANN STEERING
@@ -156,11 +166,16 @@ def compute_wheel_velocities(data,params):
     if w!=0 and not is_in_place_rotation_command(data) and not is_stop_command(data):
         ratio=abs(v/w)
         if ratio<=turning_ratio_threshold:
-            #decrease w so that new ratio is equal to threshold
-            new_w = v/ (turning_ratio_threshold*w)
-            print(f"WARN: v/w ratio too small. {np.round(v,3)}/{np.round(w,3)}={np.round(ratio,3)}")
-            print(f"Decreasing w to {np.round(new_w,3)} to avoid small turning radius")
-            w=new_w
+            print("WARN: v/w ratio too small. {}/{}={}".format(np.round(v,3),np.round(w,3),np.round(ratio,3)))
+            if in_place_on_sharp_turn:
+                print("Starting in place rotation to avoid small turning radius")
+                return get_in_place_outputs(w)
+            else:
+                #decrease w so that new ratio is equal to threshold
+                new_w = v/ (turning_ratio_threshold)
+                new_w*=np.sign(w)
+                print(f"Decreasing w to {np.round(new_w,3)} to avoid small turning radius, new ratio is {np.round(v/new_w,3)}")
+                w=new_w
 
     #Compute parameters for ackermann steering
     d=params["rover_width"]
@@ -225,7 +240,8 @@ def compute_wheel_velocities(data,params):
     params["last_angles"]=wheel_angles #update last angles
     vels=np.array(wheel_velocities)
     angles=np.array(wheel_angles)
-    return vels,angles
+    
+    return vels,angles,"ACKERMANN"
 
 def callback(data,params):
     #new command received, reset is no more valid
@@ -233,11 +249,10 @@ def callback(data,params):
     null_vels=np.zeros(6)
     null_angles=np.zeros(4)
 
-    velocities,angles=compute_wheel_velocities(data,params)
+    velocities,angles,type=compute_wheel_velocities(data,params)
     print(f"Inputs: linear: {np.round(data.linear.x,3)} angular: {np.round(data.angular.z,3)}")
     #print("output velocities: "+np.round(velocities,3)+" angles: "+np.round(angles,3))
-
-    if is_in_place_rotation_command(data):
+    if is_in_place_type(type):
         if params["in_place_configuration"]==False:
             params["in_place_configuration"]=True
             # Send first only the steering angles and wait for the wheels to be in place
