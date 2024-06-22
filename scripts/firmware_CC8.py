@@ -154,6 +154,7 @@ def compute_wheel_velocities(data,params):
     if abs(w)<1e-3:
         print_rover_state("ACKERMANN: STRAIGHT")
         wheel_velocities=[v,v,v,v,v,v]
+        wheel_velocities= linear2angular(np.array(wheel_velocities))
         wheel_angles= np.zeros(4)
         params["last_angles"]=wheel_angles #update last angles
         return wheel_velocities,wheel_angles,"STRAIGHT"
