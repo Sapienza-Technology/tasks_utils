@@ -8,6 +8,7 @@ import cv2
 from sensor_msgs.msg import Image, CompressedImage, CameraInfo
 from cv_bridge import CvBridge, CvBridgeError
 import yaml
+import sys
 class CameraSetup(object):
     def __init__(self,params):
         self.bridge = CvBridge()
@@ -44,22 +45,21 @@ class CameraSetup(object):
         self.run()
 
     def run(self):
-        while True:
+        while not rospy.is_shutdown():
             try:
 
                 ret, frame = self.cap.read()
                 if ret:
-                    try:
-                        self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame, "bgr8"))
-                        self.compressed_image_pub.publish(self.bridge.cv2_to_compressed_imgmsg(frame))
-                        if self.camera_info_path!="":
-                            self.camera_info.header.stamp = rospy.Time.now()
-                            self.camera_info_pub.publish(self.camera_info)
-                    except CvBridgeError as e:
-                        print(e)
-                    except Exception as e:
-                        print(e)
-                
+                    
+                    if self.params["flip"]:
+                        frame = cv2.flip(frame, 0)
+                        frame=cv2.flip(frame, 1)
+                    self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame, "bgr8"))
+                    self.compressed_image_pub.publish(self.bridge.cv2_to_compressed_imgmsg(frame))
+                    if self.camera_info_path!="":
+                        self.camera_info.header.stamp = rospy.Time.now()
+                        self.camera_info_pub.publish(self.camera_info)
+
             except KeyboardInterrupt:
                 print("Shutting down")
                 self.cap.release()
@@ -93,17 +93,22 @@ class CameraSetup(object):
 
 
 if __name__ == '__main__':
+    
     rospy.init_node('camera_setup')
 
+    device=sys.argv[1]
+    
     params={
         "width": rospy.get_param("~width", 640),
         "height": rospy.get_param("~height", 480),
         "fps": rospy.get_param("~fps", 30),
-        "device": rospy.get_param("~device", 1),
+        #"device": rospy.get_param("~device", 1),
+        "device" : int(device),
         "compression": rospy.get_param("~compression", "MJPG"),
         "quality": rospy.get_param("~quality", 30),
         "camera_info_path": rospy.get_param("~camera_info_path", ""),
         "camera_frame_id": rospy.get_param("~camera_frame_id", "usb_cam"),
+        "flip": rospy.get_param("~flip", False),
     }
     try:
         CameraSetup(params)

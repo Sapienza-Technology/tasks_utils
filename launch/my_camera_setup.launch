@@ -5,8 +5,8 @@ Per vedere le webcam collegate al pc e il relativo device:
     v4l2-ctl --list-devices
 
 <group ns="camera">
-<node name="camera_setup" pkg="tasks_utils" type="camera_setup.py" output="screen" >
-    <param name="device " value="2" />
+<node name="camera_setup" pkg="tasks_utils" type="camera_setup.py" output="screen" args=" $(arg device)" >
+    <param name="flip" value="true" />
     <param name="width" value="1920" />
     <param name="height" value="1080" />
     <param name="fps" value="30" />
