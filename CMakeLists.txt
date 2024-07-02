@@ -93,6 +93,7 @@ target_link_libraries(get_compressed_image_exe
     scripts/input_from_cmd.py
     scripts/camera_setup.py
     scripts/firmware_drilling.py
+    scripts/tf_from_topic.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
