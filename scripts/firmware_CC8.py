@@ -2,6 +2,7 @@
 import rospy
 from  geometry_msgs.msg import Twist
 from std_msgs.msg import Float32MultiArray, MultiArrayDimension
+from nav_msgs.msg import Odometry
 
 import math
 import time
@@ -23,16 +24,21 @@ wheel_positions=[  #*wheel distances from the x axis and y axis [m]
 D=None #distance between the wheels along y axis [m],if None computed at runtime from wheel_positions.
 
 #** Firmware parameters
-max_steer=math.pi/4             #max steering angle [rad]
-MAX_V=1                         #max linear velocity [m/s]
-IN_PLACE_VEL= MAX_V/3           #velocity for in place rotation
-in_place_delay=4                #How much to wait for wheel to be in position before starting inplace movement [s]
-turning_ratio_threshold=0.6     #threshold on v/w ratio to avoid turning radius too small in ackermann steering 
-in_place_on_sharp_turn = True   #if true, the rover will rotate in place when turning with a small radius,otherwise it will decrease the angular velocity
-enable_steer_limit = False      #enable steering angle limit, if true the steering angle will be limited to max_steer
-enable_lock_steer  = True      #enable lock steering, if true the steering angle will be locked to the last angle when the rover is stopped
-enable_steer_reset = True      #enable steering reset, if true the steering angle will be reset to 0 after some time when the rover is stopped
-steer_reset_timeout= 3.0        #how many seconds to wait when rover is stopped before resetting the wheels [s]
+max_steer=math.pi/4                     #max steering angle [rad]
+MAX_V=1                                 #max linear velocity [m/s]
+MAX_W = MAX_V/wheel_radius              #max angular velocity [rad/s]
+IN_PLACE_VEL= MAX_V/3                   #base velocity to use for in place rotation 
+in_place_delay=4                        #How much to wait for wheel to be in position before starting inplace movement [s]
+turning_ratio_threshold=0.6             #threshold on v/w ratio to avoid turning radius too small in ackermann steering 
+in_place_on_sharp_turn = True           #if true, the rover will rotate in place when turning with a small radius,otherwise it will decrease the angular velocity
+enable_steer_limit = False              #enable steering angle limit, if true the steering angle will be limited to max_steer
+enable_lock_steer  = True               #enable lock steering, if true the steering angle will be locked to the last angle when the rover is stopped
+enable_steer_reset = True               #enable steering reset, if true the steering angle will be reset to 0 after some time when the rover is stopped
+steer_reset_timeout= 3.0                #how many seconds to wait when rover is stopped before resetting the wheels [s]
+enable_velocity_feedback = True         #USE a PD controller to adjust the velocity based on the feedback from an odometry message
+velocity_feedback_KP = 0.5              #Proportional gain for the velocity feedback controller
+velocity_feedback_KD = 0.01             #Derivative gain for the velocity feedback controller
+desired_in_place_velocity = math.pi/6   #desired velocity for in place rotation [rad/s]
 
 #** FUNCTIONS
 
@@ -88,6 +94,7 @@ def publish_velocities(velocities,angles,params):
     msg.data=data
     pub.publish(msg)
     params["mutex_publishing"]=False
+    params["current_wheels_vel"]=velocities
 
 def is_in_place_rotation_command(data):
     if abs(data.linear.x)<0.001 and abs(data.angular.z)>0.001:
@@ -122,6 +129,118 @@ def get_in_place_outputs(w):
         wheel_velocities[i]=IN_PLACE_VEL*sgn
     wheel_velocities=linear2angular(np.array(wheel_velocities))
     return wheel_velocities,wheel_angles,"IN_PLACE"
+
+
+def odometry_callback(data,params):
+    current_linear_speed = data.twist.twist.linear.x
+    current_ang_speed = data.twist.twist.angular.z
+
+    if current_linear_speed==0 and current_ang_speed==0:
+        #This odometry message does not contain twist information
+        rospy.logerr_once("Odometry message does not contain twist information, feedback will be ignored!")
+
+        #Compute speed based on difference of positions
+        last_odom_feedback=params.get("last_odom_feedback",None)
+        last_time=last_odom_feedback.header.stamp.to_sec() if last_odom_feedback is not None else None
+        if last_time is None:
+            params["last_odom_feedback"]=data
+            return
+        last_pos=last_odom_feedback.pose.pose.position
+
+        current_pos=data.pose.pose.position
+        current_time=data.header.stamp.to_sec()
+
+        dt=current_time-last_time
+        if dt==0:
+            return
+        
+        #I need to compute a linear and angular speed
+        #positions are in the global frame, I need speeds in the robot frame (linear: X axis, angular: Z axis)
+        dx=current_pos.x-last_pos.x
+        dy=current_pos.y-last_pos.y
+        dz=current_pos.z-last_pos.z
+
+        #Compute linear speed
+        linear_speed=math.sqrt(dx*dx+dy*dy)/dt
+
+        #Compute angular speed
+        angular_speed=dz/dt
+
+        #Convert angular speed to robot frame
+        #I need to rotate the vector (dx,dy) by -dz
+        new_x=dx*np.cos(dz)+dy*np.sin(dz)
+        new_y=-dx*np.sin(dz)+dy*np.cos(dz)
+
+        #The new vector is (new_x,new_y)
+        #The angle is the angle of the vector with the x axis
+        angular_speed=math.atan2(new_y,new_x)
+
+        #Store the computed speeds
+        current_linear_speed=linear_speed
+        current_ang_speed=angular_speed
+
+        #TODO verify if this is correct, for now feedback with no twist is ignored
+
+        return
+    
+    current_wheel_vel=params.get("current_wheels_vel",None)
+    if current_wheel_vel is None or len(current_wheel_vel)==0:
+        return
+    
+    last_cmd_vel=params["last_cmd_vel"]
+    desired_linear=last_cmd_vel.linear.x
+    desired_angular=desired_in_place_velocity
+    linear_error = desired_linear - current_linear_speed
+    angular_error = desired_angular - current_ang_speed
+
+    error=linear_error
+    if params["in_place_configuration"]==True:
+        error=angular_error
+        print("Correcting on in place rotation:\n\tcurrent_angular_speed={}\n\tdesired_angular_speed={}\n\tangular_error={}".format(current_ang_speed,desired_angular,angular_error))
+    else:
+        print("Correcting velocity:\n\tcurrent_linear_speed={}\n\tdesired_linear_speed={}\n\tlinear_error={}".format(current_linear_speed,desired_linear,linear_error))
+       
+    
+    #** PD controller
+    correction = 0
+    #*Proportional term
+    proportional = velocity_feedback_KP * error
+    correction += proportional
+
+    #*Derivative term
+    derivative=0
+    previous_error = params.get("previous_error", 0)
+    time_now = time.time()
+    time_previous_error = params.get("time_previous_error")
+    if time_previous_error is None:
+        #*Ignore derivative term for the first iteration
+        params["time_previous_error"]=time_now
+    else:
+        dt=time_now-time_previous_error
+        derivative = (error - previous_error) / dt  
+
+    correction += velocity_feedback_KD * derivative
+
+    print(f"Correction: {correction}. Proportional: {proportional}. Derivative: {derivative}")
+
+    params["time_previous_error"]=time_now
+
+    # Update wheel velocities
+    previous_velocities = [x for x in current_wheel_vel]
+    for i in range(len(current_wheel_vel)):
+        current_wheel_vel[i] += correction
+        current_wheel_vel[i] = min(MAX_W, current_wheel_vel[i])
+        current_wheel_vel[i] = max(-MAX_W, current_wheel_vel[i])
+
+    params["previous_error"] = error
+
+    print("Previous wheel vels: ", np.round(previous_velocities,3))
+    print("Corrected wheel vels: ", np.round(current_wheel_vel,3))
+
+    publish_velocities(params["pub"],current_wheel_vel,params["last_angles"],params)
+
+    params["rate"].sleep()
+
 '''
 Given a twist message, compute the wheel velocities
 for a 6 driving wheels rover with 4 steering wheels
@@ -245,6 +364,7 @@ def compute_wheel_velocities(data,params):
     return vels,angles,"ACKERMANN"
 
 def callback(data,params):
+    params["last_cmd_vel"]=data
     #new command received, reset is no more valid
     params["rover_reset_done"]=False 
     null_vels=np.zeros(6)
@@ -297,11 +417,17 @@ def main():
         "mutex_publishing": False,                          #mutex to avoid publishing simultaneously from different threads
         "rover_reset_done": False,                          #flag to check if the rover wheels have been reset    
         "rover_width": D,                                   #rover width
-        "rate": rate                                        #rate of the main loop
+        "rate": rate,                                        #rate of the main loop
+        "last_cmd_vel": Twist(),
     }
+
+    odometry_topic=rospy.get_param("~odometry_topic","/zed2i/zed_node/odom")
     
+
     rospy.Subscriber("/cmd_vel", Twist, lambda x: callback(x,params)) 
 
+    
+    rospy.Subscriber(odometry_topic, Odometry, lambda x: odometry_callback(x,params))
 
 
     try:
