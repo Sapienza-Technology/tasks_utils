@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3
+from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseWithCovarianceStamped
 from math import cos
 from math import sin
 import numpy as np
@@ -30,6 +30,7 @@ def measure_error(est_odom,gt_odom,params):
     
     start_time=params["start_time"]
     params["counter_received"]+=1
+    print("counter_received:",params["counter_received"])
 
     #estimated position
     x=est_odom.pose.pose.position.x
@@ -83,11 +84,23 @@ def check_odom_error():
         "saving_path": rospy.get_param("~saving_path", "figures/odom_error.png"),
         "topic": odom_topic
     }
+
+    #if saving_path does not exit create it
+    with open(params["saving_path"], 'w+') as f:
+        f.write("")
+
     plot_title=rospy.get_param('~plot_title', "odom error")
     ax.set_title(plot_title)
     print("getting odom from topic:",odom_topic)
 
-    est_odom = message_filters.Subscriber(odom_topic, Odometry)
+    #est_odom = message_filters.Subscriber(odom_topic, Odometry)
+    #make it work with bot Odometry and PoseWithCovarianceStamped
+    #get topic type
+    type=Odometry 
+    if rospy.get_param('~pose_with_covariance', False):
+        type=PoseWithCovarianceStamped
+    est_odom = message_filters.Subscriber(odom_topic, type)
+
 
     gt_odom_topic="/ground_truth_local"
     try:
@@ -96,12 +109,28 @@ def check_odom_error():
         print("No ground truth topic specified, using /ground_truth_local")
     gt_odom = message_filters.Subscriber(gt_odom_topic, Odometry)
 
-    queue_size=10
-    ts = message_filters.ApproximateTimeSynchronizer([est_odom, gt_odom],queue_size,0.1)
+    queue_size=100
+    max_delay=0.1
+    ts = message_filters.ApproximateTimeSynchronizer([est_odom, gt_odom],queue_size, max_delay)
     ts.registerCallback(lambda est_odom, gt_odom: measure_error(est_odom,gt_odom,params))
 
+    #When program is stopped save figures
+    try:
+        while not rospy.is_shutdown():
+            pass
+    except KeyboardInterrupt:
+        print("Saving figure")
+        fig.savefig(params["saving_path"])
+        print("Figure saved")
+        pass
+    except rospy.ROSInterruptException:
+        print("Saving figure")
+        fig.savefig(params["saving_path"])
+        print("Figure saved")
+        pass
 
-    rospy.spin()
+
+
 
 
 
