@@ -35,7 +35,7 @@ enable_steer_limit = False              #enable steering angle limit, if true th
 enable_lock_steer  = True               #enable lock steering, if true the steering angle will be locked to the last angle when the rover is stopped
 enable_steer_reset = True               #enable steering reset, if true the steering angle will be reset to 0 after some time when the rover is stopped
 steer_reset_timeout= 3.0                #how many seconds to wait when rover is stopped before resetting the wheels [s]
-enable_velocity_feedback = True         #USE a PD controller to adjust the velocity based on the feedback from an odometry message
+enable_velocity_feedback = False         #USE a PD controller to adjust the velocity based on the feedback from an odometry message
 velocity_feedback_KP = 0.5              #Proportional gain for the velocity feedback controller
 velocity_feedback_KD = 0.01             #Derivative gain for the velocity feedback controller
 desired_in_place_velocity = math.pi/6   #desired velocity for in place rotation [rad/s]
@@ -194,7 +194,7 @@ def odometry_callback(data,params):
     angular_error = desired_angular - current_ang_speed
 
     error=linear_error
-    if params["in_place_configuration"]==True:
+    if params["in_place_configuration"]==True and abs(desired_linear)>0.01:
         error=angular_error
         print("Correcting on in place rotation:\n\tcurrent_angular_speed={}\n\tdesired_angular_speed={}\n\tangular_error={}".format(current_ang_speed,desired_angular,angular_error))
     else:
@@ -228,7 +228,13 @@ def odometry_callback(data,params):
     # Update wheel velocities
     previous_velocities = [x for x in current_wheel_vel]
     for i in range(len(current_wheel_vel)):
-        current_wheel_vel[i] += correction
+        if not params["in_place_configuration"]:
+            current_wheel_vel[i] += correction
+        else:
+            if current_wheel_vel[i]<0:
+                current_wheel_vel[i]-=correction
+            else:
+                current_wheel_vel[i]+=correction
         current_wheel_vel[i] = min(MAX_W, current_wheel_vel[i])
         current_wheel_vel[i] = max(-MAX_W, current_wheel_vel[i])
 
@@ -236,8 +242,9 @@ def odometry_callback(data,params):
 
     print("Previous wheel vels: ", np.round(previous_velocities,3))
     print("Corrected wheel vels: ", np.round(current_wheel_vel,3))
+    print("maintaing angles:",params["last_angles"])
 
-    publish_velocities(params["pub"],current_wheel_vel,params["last_angles"],params)
+    publish_velocities(current_wheel_vel,params["last_angles"],params)
 
     params["rate"].sleep()
 
@@ -364,7 +371,7 @@ def compute_wheel_velocities(data,params):
     return vels,angles,"ACKERMANN"
 
 def callback(data,params):
-    params["last_cmd_vel"]=data
+    
     #new command received, reset is no more valid
     params["rover_reset_done"]=False 
     null_vels=np.zeros(6)
@@ -378,6 +385,10 @@ def callback(data,params):
             params["in_place_configuration"]=True
             # Send first only the steering angles and wait for the wheels to be in place
             print("Rotation in place: setting steering angles...")
+            cmd_vel= Twist()
+            cmd_vel.linear.x=0
+            params["last_cmd_vel"]=cmd_vel
+            params["last_angles"]=angles
             publish_velocities(null_vels,angles,params)
             time.sleep(in_place_delay)
             print("Rotation in place: starting rotation...")
@@ -386,11 +397,19 @@ def callback(data,params):
         if params["in_place_configuration"]==True:
             #TODO do not reset to 0, set to steering angle or wait based on how much the wheel has to rotate
             print("Rover is in configuration in place, waiting for wheel to be in place")
+            cmd_vel= Twist()
+            cmd_vel.linear.x=0
+            params["last_cmd_vel"]=cmd_vel
+            params["last_angles"]=null_angles
             publish_velocities(null_vels,null_angles,params)
             time.sleep(in_place_delay)
         params["in_place_configuration"]=False
 
     #Publish computed velocity
+    params["last_cmd_vel"]=data
+    params["last_angles"]=angles
+    print("pippo")
+    #TODO here random rotation after stopped
     publish_velocities(velocities,angles,params)
 
     params["rate"].sleep()
@@ -426,8 +445,9 @@ def main():
 
     rospy.Subscriber("/cmd_vel", Twist, lambda x: callback(x,params)) 
 
-    
-    rospy.Subscriber(odometry_topic, Odometry, lambda x: odometry_callback(x,params))
+    if enable_velocity_feedback:
+        rospy.Subscriber(odometry_topic, Odometry, lambda x: odometry_callback(x,params))
+   
 
 
     try:
