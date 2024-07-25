@@ -187,6 +187,10 @@ def odometry_callback(data,params):
     if current_wheel_vel is None or len(current_wheel_vel)==0:
         return
     
+    #Skip correction when waiting to start in place rotation
+    if params["in_place_configuration"]==True and np.all(np.abs(current_wheel_vel)<0.01):
+        return
+    
     last_cmd_vel=params["last_cmd_vel"]
     desired_linear=last_cmd_vel.linear.x
     desired_angular=desired_in_place_velocity
@@ -262,7 +266,7 @@ def compute_wheel_velocities(data,params):
         print_rover_state("ROVER STOP")
         wheel_velocities=np.zeros(6)
         wheel_angles=np.zeros(4)
-        if enable_lock_steer:
+        if enable_lock_steer and not params["in_place_configuration"]:
             #Stop wheels but maintain angle
             wheel_angles=params["last_angles"]
         params["last_stopped_time"]=time.time()
@@ -282,7 +286,7 @@ def compute_wheel_velocities(data,params):
         wheel_velocities=[v,v,v,v,v,v]
         wheel_velocities= linear2angular(np.array(wheel_velocities))
         wheel_angles= np.zeros(4)
-        params["last_angles"]=wheel_angles #update last angles
+        #params["last_angles"]=wheel_angles #update last angles
         return wheel_velocities,wheel_angles,"STRAIGHT"
 
 
@@ -364,7 +368,7 @@ def compute_wheel_velocities(data,params):
 
     #Convert linear velocities to angular velocities and return
     wheel_velocities=linear2angular(np.array(wheel_velocities))
-    params["last_angles"]=wheel_angles #update last angles
+    #params["last_angles"]=wheel_angles #update last angles
     vels=np.array(wheel_velocities)
     angles=np.array(wheel_angles)
     
@@ -462,12 +466,13 @@ def main():
             if is_enabled and not reset_done and is_robot_stopped and should_reset:
                 
                 #reset only if at least one angle is not 0
-                if sum(params["last_angles"])>0:
+                if np.any(np.abs(params["last_angles"])>0.01):
                     #print("rover stopped for more than {} seconds, resetting wheels".format(steer_reset_timeout)) 
                     #reset wheels angles
+                    params["last_cmd_vel"]=Twist()
+                    params["last_angles"]=np.zeros(4)
                     reset_wheels(params)
                     params["rover_reset_done"]=True
-                    params["last_angles"]=np.zeros(4)
 
             rate.sleep()
     except KeyboardInterrupt:
