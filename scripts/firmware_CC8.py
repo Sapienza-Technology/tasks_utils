@@ -27,18 +27,22 @@ D=None #distance between the wheels along y axis [m],if None computed at runtime
 max_steer=math.pi/4                     #max steering angle [rad]
 MAX_V=1                                 #max linear velocity [m/s]
 MAX_W = MAX_V/wheel_radius              #max angular velocity [rad/s]
-IN_PLACE_VEL= MAX_V/3                   #base velocity to use for in place rotation 
-in_place_delay=4                        #How much to wait for wheel to be in position before starting inplace movement [s]
+desired_in_place_velocity = math.pi/6   #desired velocity for in place rotation [rad/s]
+in_place_delay=2                        #How much to wait for wheel to be in position before starting inplace movement [s]
+min_wheel_velocity = 0.1                #minimum velocity actuated for the driving wheels, if a lower speed is computed, it is clamped to 0. Used to avoid zzzzt soudn
+
 turning_ratio_threshold=0.6             #threshold on v/w ratio to avoid turning radius too small in ackermann steering 
 in_place_on_sharp_turn = True           #if true, the rover will rotate in place when turning with a small radius,otherwise it will decrease the angular velocity
+
 enable_steer_limit = False              #enable steering angle limit, if true the steering angle will be limited to max_steer
 enable_lock_steer  = True               #enable lock steering, if true the steering angle will be locked to the last angle when the rover is stopped
 enable_steer_reset = True               #enable steering reset, if true the steering angle will be reset to 0 after some time when the rover is stopped
 steer_reset_timeout= 3.0                #how many seconds to wait when rover is stopped before resetting the wheels [s]
-enable_velocity_feedback = False         #USE a PD controller to adjust the velocity based on the feedback from an odometry message
+
+enable_velocity_feedback = True         #USE a PD controller to adjust the velocity based on the feedback from an odometry message
 velocity_feedback_KP = 0.5              #Proportional gain for the velocity feedback controller
 velocity_feedback_KD = 0.01             #Derivative gain for the velocity feedback controller
-desired_in_place_velocity = math.pi/6   #desired velocity for in place rotation [rad/s]
+
 
 #** FUNCTIONS
 
@@ -87,6 +91,19 @@ def publish_velocities(velocities,angles,params):
     msg.layout.dim.append(MultiArrayDimension())
     msg.layout.dim[0].size=10
 
+    #Controls
+    for (i,v) in enumerate(velocities):
+
+        #do not actuate small velocities
+        if v<min_wheel_velocity:
+            velocities[i]=0
+
+        #do not actuate too large velocities
+        if v>MAX_W:
+            velocities[i]=MAX_W
+        elif v<-MAX_W:
+            velocities[i]=-MAX_W
+         
     #Adding data and publishing
     vels=list(velocities)
     angles=list(angles)
@@ -120,13 +137,12 @@ def get_in_place_outputs(w):
         wheel_y=wheel_positions[i][1]
         
         r=math.sqrt(wheel_x*wheel_x+wheel_y*wheel_y)
-
         #cambia segno se ruota in senso sbagliato
         sgn= 1 if wheel_y < 0 else -1
         if w<0: 
             sgn*=-1
-        vel = w*r*sgn
-        wheel_velocities[i]=IN_PLACE_VEL*sgn
+
+        wheel_velocities[i]=desired_in_place_velocity*r*sgn
     wheel_velocities=linear2angular(np.array(wheel_velocities))
     return wheel_velocities,wheel_angles,"IN_PLACE"
 
@@ -193,12 +209,15 @@ def odometry_callback(data,params):
     
     last_cmd_vel=params["last_cmd_vel"]
     desired_linear=last_cmd_vel.linear.x
-    desired_angular=desired_in_place_velocity
+    if last_cmd_vel.angular.z>0:
+        desired_angular=desired_in_place_velocity
+    else:
+        desired_angular=-desired_in_place_velocity
     linear_error = desired_linear - current_linear_speed
     angular_error = desired_angular - current_ang_speed
 
     error=linear_error
-    if params["in_place_configuration"]==True and abs(desired_linear)>0.01:
+    if params["in_place_configuration"]==True:
         error=angular_error
         print("Correcting on in place rotation:\n\tcurrent_angular_speed={}\n\tdesired_angular_speed={}\n\tangular_error={}".format(current_ang_speed,desired_angular,angular_error))
     else:
@@ -235,10 +254,10 @@ def odometry_callback(data,params):
         if not params["in_place_configuration"]:
             current_wheel_vel[i] += correction
         else:
-            if current_wheel_vel[i]<0:
-                current_wheel_vel[i]-=correction
-            else:
-                current_wheel_vel[i]+=correction
+            wheel_y=wheel_positions[i][1]
+            sgn= 1 if wheel_y < 0 else -1
+            current_wheel_vel[i]+= (correction*sgn)
+
         current_wheel_vel[i] = min(MAX_W, current_wheel_vel[i])
         current_wheel_vel[i] = max(-MAX_W, current_wheel_vel[i])
 
@@ -257,6 +276,10 @@ Given a twist message, compute the wheel velocities
 for a 6 driving wheels rover with 4 steering wheels
 '''
 def compute_wheel_velocities(data,params):
+    if data.linear.x>MAX_V:
+        data.linear.x=MAX_V
+    elif data.linear.x<-MAX_V:
+        data.linear.x=-MAX_V
 
     v=data.linear.x
     w=data.angular.z
