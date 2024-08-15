@@ -110,6 +110,8 @@ class VelocityPublisher(threading.Thread):
     
     def update_state(self,new_state):
         self.rover_state = new_state
+
+        self.stop_rover()
         
         print("state now is:",self.rover_state)
 
