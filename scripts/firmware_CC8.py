@@ -29,7 +29,7 @@ MAX_V=1                                 #max linear velocity [m/s]
 MAX_W = MAX_V/wheel_radius              #max angular velocity [rad/s]
 desired_in_place_velocity = math.pi/6   #desired velocity for in place rotation [rad/s]
 in_place_delay=2                        #How much to wait for wheel to be in position before starting inplace movement [s]
-min_wheel_velocity = 0.1                #minimum velocity actuated for the driving wheels, if a lower speed is computed, it is clamped to 0. Used to avoid zzzzt soudn
+min_wheel_velocity = 0.05                #minimum velocity actuated for the driving wheels, if a lower speed is computed, it is clamped to 0. Used to avoid zzzzt soudn
 
 turning_ratio_threshold=0.6             #threshold on v/w ratio to avoid turning radius too small in ackermann steering 
 in_place_on_sharp_turn = True           #if true, the rover will rotate in place when turning with a small radius,otherwise it will decrease the angular velocity
@@ -39,7 +39,7 @@ enable_lock_steer  = True               #enable lock steering, if true the steer
 enable_steer_reset = True               #enable steering reset, if true the steering angle will be reset to 0 after some time when the rover is stopped
 steer_reset_timeout= 3.0                #how many seconds to wait when rover is stopped before resetting the wheels [s]
 
-enable_velocity_feedback = True         #USE a PD controller to adjust the velocity based on the feedback from an odometry message
+enable_velocity_feedback = False         #USE a PD controller to adjust the velocity based on the feedback from an odometry message
 velocity_feedback_KP = 0.5              #Proportional gain for the velocity feedback controller
 velocity_feedback_KD = 0.01             #Derivative gain for the velocity feedback controller
 
@@ -95,7 +95,7 @@ def publish_velocities(velocities,angles,params):
     for (i,v) in enumerate(velocities):
 
         #do not actuate small velocities
-        if v<min_wheel_velocity:
+        if abs(v)<min_wheel_velocity:
             velocities[i]=0
 
         #do not actuate too large velocities
