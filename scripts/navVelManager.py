@@ -31,8 +31,6 @@ class VelocityPublisher(threading.Thread):
 
         self.vel_pub = rospy.Publisher(self.vel_topic, Twist, queue_size=1)
         
-
-        
         #*Control variables
         self.manual_vel = Twist()
         self.autonomous_vel = Twist()
@@ -55,6 +53,7 @@ class VelocityPublisher(threading.Thread):
         self.new_manual_command = False
         self.new_autonomous_command = False
         self.new_lora_command = False
+        self.isDaemon = True
         self.start()
 
     def manual_vel_callback(self, msg):
@@ -79,13 +78,16 @@ class VelocityPublisher(threading.Thread):
         self.condition.release()
 
     def stop(self):
+        self.stop_rover()
         self.done = True
+        print("exiting....")
         self.join()
 
     def run(self):
         try:
             while not self.done and not rospy.is_shutdown():
                 self.condition.acquire()
+                self.condition.wait(0.1)
                 if not self.rover_state==self.states.IDLE:
                     if self.rover_state==self.states.MANUAL:
                         if self.new_manual_command:
@@ -99,10 +101,11 @@ class VelocityPublisher(threading.Thread):
                         if self.new_autonomous_command:
                             self.vel_pub.publish(self.autonomous_vel)
                             self.new_autonomous_command = False
-                self.condition.wait()
                 self.condition.release()
-        except KeyboardInterrupt:
-            print("ctrl c detected")
+        except Exception:
+            self.stop()
+        print("finished run")
+
 
     def stop_rover(self):
         twist = Twist()
@@ -118,38 +121,39 @@ class VelocityPublisher(threading.Thread):
         self.led_pub.publish(self.led_lights[self.rover_state])
         return EmptyResponse()
         
+if __name__ == '__main__':
+    
+    rospy.init_node("navVelManager")
+
+    state = Enum('state', ['IDLE','MANUAL','MANUAL_LORA','AUTONOMOUS_RUNNING'])
+
+    variables = {
+        "manual_vel_topic": rospy.get_param("~manual_vel_topic", "/cmd_vel_manual"),
+        "autonomous_vel_topic": rospy.get_param("~autonomous_vel_topic", "/cmd_vel_auto"),
+        "manual_lora_vel_topic": rospy.get_param("~manual_lora_vel_topic", "/cmd_vel_lora"),
+        "vel_topic": rospy.get_param("~vel_topic", "/cmd_vel"),
+        "led_topic": rospy.get_param("~led_topic", "/comando"),
+        "states": state
+    }
+    velPublisher = VelocityPublisher(variables)
 
 
-def main():
     try:
-        rospy.init_node("navVelManager")
 
+        while not rospy.is_shutdown():
         
-        state = Enum('state', ['IDLE','MANUAL','MANUAL_LORA','AUTONOMOUS_RUNNING'])
+            manual_service= rospy.Service("CC8_manual", Empty, lambda x: velPublisher.update_state(state.MANUAL))
+            auto_service=   rospy.Service("CC8_auto",   Empty, lambda x: velPublisher.update_state(state.AUTONOMOUS_RUNNING))
+            manual_service= rospy.Service("CC8_lora",   Empty, lambda x: velPublisher.update_state(state.MANUAL_LORA))
+            idle_service=   rospy.Service("CC8_idle",   Empty, lambda x: velPublisher.update_state(state.IDLE))
 
-        variables = {
-            "manual_vel_topic": rospy.get_param("~manual_vel_topic", "/cmd_vel_manual"),
-            "autonomous_vel_topic": rospy.get_param("~autonomous_vel_topic", "/cmd_vel_auto"),
-            "manual_lora_vel_topic": rospy.get_param("~manual_lora_vel_topic", "/cmd_vel_lora"),
-            "vel_topic": rospy.get_param("~vel_topic", "/cmd_vel"),
-            "led_topic": rospy.get_param("~led_topic", "/comando"),
-            "states": state
-        }
-        velPublisher = VelocityPublisher(variables)
-        manual_service= rospy.Service("CC8_manual", Empty, lambda x: velPublisher.update_state(state.MANUAL))
-        auto_service=   rospy.Service("CC8_auto",   Empty, lambda x: velPublisher.update_state(state.AUTONOMOUS_RUNNING))
-        manual_service= rospy.Service("CC8_lora",   Empty, lambda x: velPublisher.update_state(state.MANUAL_LORA))
-        idle_service=   rospy.Service("CC8_idle",   Empty, lambda x: velPublisher.update_state(state.IDLE))
-
-        rospy.spin()
-        #TODO perchè non si chiude con ctrl+c? :(
+            #TODO perchè non si chiude con ctrl+c? :(
     except KeyboardInterrupt:
         print("NAVMANAGER: exiting...")
         velPublisher.stop()
+    except rospy.service.ServiceException:
+        pass
 
 
-if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("NAVMANAGER: exiting...")
+
+
