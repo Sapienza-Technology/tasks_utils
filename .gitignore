@@ -2,3 +2,5 @@ figures
 bags
 not_ros/images
 not_ros/images_from_ros
+*/__pycache__
+*.pyc

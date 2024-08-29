@@ -7,11 +7,11 @@ import yaml
 
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 # Number of object points 
-num_intersections_in_x = 10  
+num_intersections_in_x = 9  
 num_intersections_in_y = 7
 
 # Size of square in meters
-square_size = 0.0246
+square_size = 0.02
 
 # Arrays to store 3D points and 2D image points
 obj_points = []
@@ -84,6 +84,7 @@ for img_name in imgs:
 print("img_shape = ", img_shape)
 
 # Calibrate camera
+print("Calibrating camera...")
 ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(obj_points, img_points,img_shape,None,None)
 
 K=np.array(mtx)
