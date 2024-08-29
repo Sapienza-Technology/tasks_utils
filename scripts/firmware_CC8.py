@@ -10,15 +10,15 @@ import numpy as np
 
 
 #** Rover Parameters
-wheel_radius=0.08 #radius of the wheel [m]
+wheel_radius=0.12 #radius of the wheel [m]
 
 wheel_positions=[  #*wheel distances from the x axis and y axis [m]
-    [0.51,0.4],    #front left
-    [0.51,-0.4],   #front right
-    [0,0.47],      #mid left
-    [0,-0.47],     #mid right
-    [-0.51,0.41],  #rear left
-    [-0.51,-0.41]  #rear right
+    [0.51,0.35],    #front left
+    [0.51,-0.35],   #front right
+    [0,0.48],      #mid left
+    [0,-0.48],     #mid right
+    [-0.51,0.4],  #rear left
+    [-0.51,-0.4]  #rear right
 ]
 
 D=None #distance between the wheels along y axis [m],if None computed at runtime from wheel_positions.
