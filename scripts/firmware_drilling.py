@@ -1,128 +1,100 @@
 #!/usr/bin/env python3
 """
-ROS node that waits for input of the user and send the command to the firmware
-
-
-send a message using a Float32MultiArray with 3 numbers:
-Stepper position, stepper speed, drilling speed [0 to 1]
-
+ROS node that waits for input of the user and send the command to the firmware of the carotator
 """
 
 import rospy
-from std_msgs.msg import Float32MultiArray
+import numpy as np
+from std_msgs.msg import Float32MultiArray, Float32
 
 import sys, select, termios, tty
+from tasks_utils.IO_utils import *
 
 
-def getKey(settings):
-    tty.setraw(sys.stdin.fileno())
-    rlist, _, _ = select.select([sys.stdin], [], [], 0.1)   
-    if rlist:
-        key = sys.stdin.read(1)
-    else:
-        key = ''
-    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
-    return key
+def deep_sample_callback(data,params):
+    if data.data == params["deep_sample"]:
+        return
+    params["deep_sample"] = data.data
+    params["is_updated"] = True
+
+def surface_sample_callback(data,params):
+    if data.data == params["surface_sample"]:
+        return
+    params["surface_sample"] = data.data
+    params["is_updated"] = True
+
+def print_terminal(params):
+    clear_terminal()
+    print(boot_msg)
+    surface_data = np.round(params["surface_sample"],2)
+    deep_data = np.round(params["deep_sample"],2)
+    stats_string = stats_msg.format(params["led_status"],surface_data,deep_data)
+    style_print(stats_string,bcolors.OKCYAN)
 
 def main():
+    settings = saveTerminalSettings()
+
     rospy.init_node('firmware_drilling', anonymous=True)
-    pub = rospy.Publisher('drilling_commands', Float32MultiArray, queue_size=10)
-    msg = """
-    Drilling control!
-    ---------------------------
 
-        I and K arrow:  move stepper up and down
-        if D (drill) is pressed: increase drilling speed
-        if S (Stepper) is pressed:increase stepper speed
-        + or - : switch speed increase with speed decrease
-        I to invert drilling rotation
-        SPACE to start and stop the drill
-    q to quit
-    """
     settings=termios.tcgetattr(sys.stdin)
-    print(msg)
-    drill_msg=[0,0,0]
-    stepper_speed = 10 #Step per second
-    drill_speed = 0.1
-    rate = rospy.Rate(30) # 10hz
-    increasing = True
-    stop=True
-    sign_drill = 1 #move clockwise or counterclockwise
+    print(boot_msg)
+
+    params = {
+        "stepper_topic": "stepper_commands",
+        "drill_topic": "drill_commands",
+        "led_topic": "led_commands",
+        "load_cell_deep_topic": "load_cell_deep",
+        "load_cell_surface_topic": "load_cell_surface",
+        "deep_sample": 0,
+        "surface_sample": 0,
+        "led_status": "OFF",
+        "is_updated": False
+
+    }
+
+    rospy.Subscriber(params["load_cell_deep_topic"], Float32, deep_sample_callback,params)
+    rospy.Subscriber(params["load_cell_surface_topic"], Float32, surface_sample_callback,params)
+
+    #TODO check type of topics in firmware drill
+
     while not rospy.is_shutdown():
-        pressed=False
-        key = getKey(settings)
-        if key == 'i':
-            drill_msg[0] += stepper_speed
-            pressed=True
-        elif key == 'k':
-            drill_msg[0] -= stepper_speed
-            pressed=True
-        elif key == 'd':
-            #get char to see if + or -
-            if increasing:
-                drill_speed *= 1.1
-            else: 
-                drill_speed /= 1.1
-            drill_speed=sign_drill*drill_speed
-            print("Drill speed: ", drill_speed)
-            pressed=True
-        elif key == 's':
-            if increasing:
-                stepper_speed *= 1.1
-            else:
-                stepper_speed /= 1.1
-            print("Stepper speed: ", stepper_speed)
-            pressed=True
-        elif key == ' ':
-            if stop:
-                print("START!")
-                stop=False
-            else:
-                print("STOP!")
-                stop=True
-            pressed=True
-        elif key == '+':
-            increasing = True
-            print("increasing mode")
-        elif key == '-':
-            increasing = False
-            print("decreasing mode")
-        elif key == 'i':
-            print("inverting drilling rotation")
-            sign_drill *= -1
-            #do not stop and invert all together, send first stop
-            print("stopping drill")
-            ros_msg = Float32MultiArray()
-            ros_msg.data = [drill_msg[0], drill_msg[1], 0]
-            pub.publish(ros_msg)
-            time.sleep(1)
-            print("inverting drill rotation")
-            
-        elif key == 'q':
-            print("Exit..")
-            #stop
-            ros_msg = Float32MultiArray()
-            ros_msg.data = [drill_msg[0], 0, 0]
-            pub.publish(ros_msg)
+        try:
+            if params["is_updated"]:
+                print_terminal(params)
+                params["is_updated"] = False
 
-            break
-        else:
-            if (key == '\x03'):
+            key = getKey(settings,0.1)
+
+            if key == 'w' or key == 'W':
+                #move drill up
+                print("Moving drill up")
+                pass
+            elif key == 's' or key == 'S':
+                #move drill down
+                print("Moving drill down")
+                pass
+            elif key == 'd' or key == 'D':
+                #start and stop the drill
+                print("Starting and stopping the drill")
+                pass
+            elif key == 'i' or key == 'I':
+                #invert drilling rotation
+                print("Inverting drilling rotation")
+                pass
+            elif key == ' ':
+                print("Stopping...")
+                #stop 
+                pass
+            elif key == '\x03':
+                print("Exiting...")
                 break
-        if stop:
-            ros_msg = Float32MultiArray()
-            ros_msg.data = [drill_msg[0], drill_msg[1], 0]
-            pub.publish(ros_msg)
-        else:
-            if pressed:
-                print("Stepper position: ", drill_msg[0], "Stepper speed: ", stepper_speed, "Drill speed: ", drill_speed)
-                ros_msg = Float32MultiArray()
 
-                drill_msg[1] = stepper_speed
-                drill_msg[2] = drill_speed
-                ros_msg.data = drill_msg
-                pub.publish(ros_msg)
-    
+        except KeyboardInterrupt:
+            print("Exiting...")
+            break
 
+    restoreTerminalSettings(settings)
+
+        
 if __name__ == '__main__':
     main()
