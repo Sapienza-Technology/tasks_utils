@@ -77,8 +77,14 @@ boot_msg = """
 ********** CAROTATORE **********
 Press:
 W and S arrow:  move drill up and down
-D to start and stop the drill
-I to invert drilling rotation
+> and < :  increase and decrease drilling speed
++ and - to calibrate deep scale sample
+* and _ to calibrate surface scale sample
+G to change semaphore color to Green
+R to change semaphore color to Red
+B to change semaphore color to Blue
+Y to change semaphore color to Yellow
+P to change semaphore color to Purple
 SPACE to stop
 """
 

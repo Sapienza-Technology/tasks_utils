@@ -5,10 +5,13 @@ ROS node that waits for input of the user and send the command to the firmware o
 
 import rospy
 import numpy as np
-from std_msgs.msg import Float32MultiArray, Float32
+from std_msgs.msg import Float32MultiArray, Float32, String
 
 import sys, select, termios, tty
 from tasks_utils.IO_utils import *
+#NEW
+def chatter_callback(data):
+    print(data.data+"\r\n")
 
 
 def deep_sample_callback(data,params):
@@ -56,7 +59,11 @@ def main():
     rospy.Subscriber(params["load_cell_surface_topic"], Float32, surface_sample_callback,params)
 
     #TODO check type of topics in firmware drill
-
+    #NEW
+    pub = rospy.Publisher('comando', String, queue_size=10)
+    clear_terminal()
+    print(boot_msg)
+    rospy.Subscriber('chatter', String, chatter_callback)
     while not rospy.is_shutdown():
         try:
             if params["is_updated"]:
@@ -67,23 +74,62 @@ def main():
 
             if key == 'w' or key == 'W':
                 #move drill up
+                pub.publish('w')
                 print("Moving drill up")
                 pass
             elif key == 's' or key == 'S':
                 #move drill down
+                pub.publish('s')
                 print("Moving drill down")
                 pass
-            elif key == 'd' or key == 'D':
-                #start and stop the drill
-                print("Starting and stopping the drill")
-                pass
-            elif key == 'i' or key == 'I':
-                #invert drilling rotation
-                print("Inverting drilling rotation")
-                pass
             elif key == ' ':
+                pub.publish('k')
                 print("Stopping...")
                 #stop 
+                pass
+            elif key == 'g' or key == 'G':
+                pub.publish('g')
+                #print('Green')
+                pass
+            elif key == 'r' or key == 'R':
+                pub.publish('r')
+                #print('Red')
+                pass
+            elif key == 'b' or key == 'B':
+                pub.publish('b')
+                #print('Blue')
+                pass
+            elif key == 'y' or key == 'Y':
+                pub.publish('y')
+                #print('Yellow')
+                pass
+            elif key == 'p' or key == 'P':
+                pub.publish('p')
+                #print('Purple')
+                pass
+            elif key == '+':
+                pub.publish('+')
+                print('+1000 deep factor')
+                pass
+            elif key == '-':
+                pub.publish('-')
+                print('-1000 deep factor')
+                pass
+            elif key == '*':
+                pub.publish('*')
+                print('+1000 surface factor')
+                pass
+            elif key == '_':
+                pub.publish('_')
+                print('-1000 surface factor')
+                pass
+            elif key == '>':
+                pub.publish('>')
+                print('Increased drilling speed')
+                pass
+            elif key == '<':
+                pub.publish('<')
+                print('Decreased drlling speed')
                 pass
             elif key == '\x03':
                 print("Exiting...")
