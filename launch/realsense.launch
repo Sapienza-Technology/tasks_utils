@@ -1,8 +1,9 @@
 <launch>
   <include file="$(find realsense2_camera)/launch/rs_rgbd.launch"> 
-   <arg name="json_file_path" value="$(find tasks_utils)/params/realsenseHighAccuracy.json" />
-   <arg name="align_depth" value="true" />
-    <arg name="enable_pointcloud" value="true" />
+  <arg name="json_file_path" value="$(find tasks_utils)/params/realsenseHighAccuracy.json" />
+  
+	<arg name="align_depth" value="true" />
+    <arg name="enable_pointcloud" value="false" />
    </include>
    <!-- <rosparam>
       /camera/stereo_module/visual_preset: 3
