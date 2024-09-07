@@ -6,7 +6,7 @@ Per vedere le webcam collegate al pc e il relativo device:
 
 <group ns="camera">
 <node name="camera_setup" pkg="tasks_utils" type="camera_setup.py" output="screen" args=" $(arg device)" >
-    <param name="flip" value="false" /> 
+    <param name="flip" value="true" /> 
     <!-- 640,480; 1280,720; 1920,1080 -->
     <param name="width" value="1280" />
     <param name="height" value="720" />
