@@ -34,6 +34,10 @@ def print_terminal(params):
     stats_string = stats_msg.format(params["led_status"],surface_data,deep_data)
     style_print(stats_string,bcolors.OKCYAN)
 
+def publish_command(command,prev_command,pub):
+    if command!=prev_command:
+        pub.publish(command)
+
 def main():
     settings = saveTerminalSettings()
 
@@ -64,77 +68,90 @@ def main():
     clear_terminal()
     print(boot_msg)
     rospy.Subscriber('chatter', String, chatter_callback)
+    prev_command = ""
     while not rospy.is_shutdown():
         try:
             if params["is_updated"]:
                 print_terminal(params)
                 params["is_updated"] = False
-
+            
+            command=""
             key = getKey(settings,0.1)
-
+            
             if key == 'w' or key == 'W':
-                #move drill up
-                pub.publish('w')
+                command='w'
+                #move drill u
                 print("Moving drill up")
                 pass
             elif key == 's' or key == 'S':
                 #move drill down
-                pub.publish('s')
+                command='s'
                 print("Moving drill down")
                 pass
             elif key == ' ':
-                pub.publish('k')
+                command='k'
+                clear_terminal()
+                print(boot_msg)
                 print("Stopping...")
                 #stop 
                 pass
+            elif key=="e":
+                print("surface up")
+                command="e"
+            elif key=="q":
+                print("surface down")
+                command="q"
             elif key == 'g' or key == 'G':
-                pub.publish('g')
+                command='g'
                 #print('Green')
                 pass
             elif key == 'r' or key == 'R':
-                pub.publish('r')
+                command='r'
                 #print('Red')
                 pass
             elif key == 'b' or key == 'B':
-                pub.publish('b')
+                command='b'
                 #print('Blue')
                 pass
             elif key == 'y' or key == 'Y':
-                pub.publish('y')
+                command='y'
                 #print('Yellow')
                 pass
             elif key == 'p' or key == 'P':
-                pub.publish('p')
+                command='p'
                 #print('Purple')
                 pass
             elif key == '+':
-                pub.publish('+')
+                command='+'
                 print('+1000 deep factor')
                 pass
             elif key == '-':
-                pub.publish('-')
+                command='-'
                 print('-1000 deep factor')
                 pass
             elif key == '*':
-                pub.publish('*')
+                command='*'
                 print('+1000 surface factor')
                 pass
             elif key == '_':
-                pub.publish('_')
+                command= '_'
                 print('-1000 surface factor')
                 pass
             elif key == '>':
-                pub.publish('>')
+                command= '>'
                 print('Increased drilling speed')
                 pass
             elif key == '<':
-                pub.publish('<')
+                command = '<'
                 print('Decreased drlling speed')
                 pass
             elif key == '\x03':
                 print("Exiting...")
                 break
-
+            if command!="":
+                publish_command(command,prev_command,pub)
+                prev_command =command
+            
         except KeyboardInterrupt:
             print("Exiting...")
             break

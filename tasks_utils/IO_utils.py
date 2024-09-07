@@ -77,6 +77,7 @@ boot_msg = """
 ********** CAROTATORE **********
 Press:
 W and S arrow:  move drill up and down
+E and Q: to move surface Up and Down
 > and < :  increase and decrease drilling speed
 + and - to calibrate deep scale sample
 * and _ to calibrate surface scale sample
