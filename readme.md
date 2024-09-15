@@ -31,7 +31,7 @@ It assumes that the firmware receives velocity commands on `/cmd_vel topic`, man
 Calling the services `CC8_manual`, `CC8_auto` or `CC8_idle` will switch the state of the rover.
 There is an additional state called by the service `CC8_lora` that uses the velocity received through Lora on the topic `/cmd_vel_lora`. 
 See [com_utils](https://github.com/Sapienza-Technology/com_utils) package for details.
-
+This node also change LED colors based on the state of the rover. This function is used when the firmware of the drilling system board is active.
 ### Sensors
 Scripts and nodes used to start sensors and publish data to ROS.
 - **camera_setup**: node used to start a usb camera and publish compressed iamge and camera info to ROS. to be launched from launch file (see my_camera_setup.launch)
